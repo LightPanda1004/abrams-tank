@@ -103,6 +103,9 @@ MonoBehaviour:
   lifetime: 5
   explosionPrefab: {fileID: 100006, guid: a49596ebf788acd4ab1281bffea444b1, type: 3}
   explosionDestroyDelay: 5
+  blastRadius: 5
+  blastForce: 250
+  blastUpwardsModifier: 0.5
   disappearDuration: 0.4
   trailCleanupTime: 3
 --- !u!114 &-8399468812298249997

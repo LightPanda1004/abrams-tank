@@ -1,5 +1,6 @@
 
 using UnityEngine;
+using Unity.Netcode;
 
 public class TankHealth : MonoBehaviour
 {
@@ -20,13 +21,26 @@ public class TankHealth : MonoBehaviour
     public bool isPlayerTank = false;
 
     private bool isDestroyed = false;
+    private NetworkTankPlayer networkTankPlayer;
 
     public float CurrentHealth => currentHealth;
 
     public bool IsDestroyed => isDestroyed;
+
+    public void SetReplicatedHealth(float health)
+    {
+        currentHealth = Mathf.Clamp(health, 0f, maxHealth);
+
+        if (healthBar != null)
+            healthBar.UpdateHealth(currentHealth);
+
+        isDestroyed = currentHealth <= 0f;
+    }
+
     void Awake()
     {
         currentHealth = maxHealth;
+        networkTankPlayer = GetComponent<NetworkTankPlayer>();
 
         if (healthBar != null)
         {
@@ -40,8 +54,16 @@ public class TankHealth : MonoBehaviour
         if (isDestroyed || damage <= 0f)
             return;
 
+        if (NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsListening &&
+            !NetworkManager.Singleton.IsServer)
+            return;
+
         currentHealth -= damage;
         currentHealth = Mathf.Max(0f, currentHealth);
+
+        if (networkTankPlayer != null)
+            networkTankPlayer.SetServerHealth(currentHealth);
 
         // Update the health bar.
         if (healthBar != null)
@@ -93,7 +115,12 @@ private void DisableTank()
             return;
 
         isDestroyed = true;
-        Destroy(healthBar.gameObject);
+
+        if (healthBar != null)
+            Destroy(healthBar.gameObject);
+
+        if (networkTankPlayer == null)
+            networkTankPlayer = GetComponent<NetworkTankPlayer>();
 
         MinimapMarker marker = GetComponent<MinimapMarker>();
 
@@ -120,8 +147,18 @@ private void DisableTank()
             Destroy(FireandSmoke, destroyDelay);
         }
 
-        // Destroy the tank.
-        DisableTank();
-        Destroy(gameObject, destroyDelay);
+        // Despawn networked tanks before disabling their network behaviours.
+        NetworkObject networkObject = GetComponent<NetworkObject>();
+        if (networkObject != null && networkObject.IsSpawned &&
+            NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsServer)
+        {
+            networkObject.Despawn(true);
+        }
+        else
+        {
+            DisableTank();
+            Destroy(gameObject, destroyDelay);
+        }
     }
 }

@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using Unity.Netcode;
 
 public class TankFire : MonoBehaviour
 {
@@ -36,24 +37,17 @@ public class TankFire : MonoBehaviour
     public Slider reloadSlider;
     public TMP_Text reloadText;
 
-    private CircularReloadUI circularReloadUI;
     private float nextFireTime;
     private bool isReloading;
     private bool canFire;
 
-    void Awake()
-    {
-        circularReloadUI = FindObjectOfType<CircularReloadUI>();
-
-        if (circularReloadUI == null)
-        {
-            GameObject uiObject =
-                new GameObject("CircularReloadUI");
-
-            circularReloadUI =
-                uiObject.AddComponent<CircularReloadUI>();
-        }
-    }
+    public bool IsReloading => isReloading;
+    public float RemainingReload => Mathf.Max(0f, nextFireTime - Time.time);
+    public float ReloadProgress =>
+        isReloading
+            ? 1f - Mathf.Clamp01((nextFireTime - Time.time) /
+                Mathf.Max(0.1f, fireCooldown))
+            : 1f;
 
     void Start()
     {
@@ -123,30 +117,16 @@ public class TankFire : MonoBehaviour
 
         SetReloadUIVisible(true);
 
-        if (circularReloadUI != null)
-            circularReloadUI.StartReload(cooldown);
+        NetworkTankPlayer networkPlayer =
+            GetComponent<NetworkTankPlayer>();
 
-        // Spawn projectile.
-        GameObject shell = Instantiate(
-            shellPrefab,
-            firePoint.position,
-            firePoint.rotation
-        );
-
-        Rigidbody shellRb = shell.GetComponent<Rigidbody>();
-
-        if (shellRb == null)
-            shellRb = shell.GetComponentInChildren<Rigidbody>();
-
-        if (shellRb != null)
+        if (networkPlayer != null && networkPlayer.IsSpawned)
         {
-            shellRb.velocity = firePoint.forward * shellSpeed;
+            networkPlayer.FireShellServerRpc(shellSpeed);
         }
         else
         {
-            Debug.LogWarning(
-                "TankFire: Shell prefab has no Rigidbody!"
-            );
+            SpawnLocalShell();
         }
 
         // Spawn muzzle effect only after firing.
@@ -162,6 +142,34 @@ public class TankFire : MonoBehaviour
         }
 
         Debug.Log("Player tank fired.");
+    }
+
+    private void SpawnLocalShell()
+    {
+        GameObject shell = Instantiate(
+            shellPrefab,
+            firePoint.position,
+            firePoint.rotation
+        );
+
+        TankShell shellScript = shell.GetComponent<TankShell>();
+        if (shellScript != null)
+            shellScript.SetOwner(transform);
+
+        Rigidbody shellRigidbody = shell.GetComponent<Rigidbody>();
+
+        if (shellRigidbody == null)
+            shellRigidbody = shell.GetComponentInChildren<Rigidbody>();
+
+        if (shellRigidbody != null)
+        {
+            shellRigidbody.isKinematic = false;
+            shellRigidbody.velocity = firePoint.forward * shellSpeed;
+        }
+        else
+        {
+            Debug.LogWarning("TankFire: Shell prefab has no Rigidbody!");
+        }
     }
 
     void UpdateReloadState()
@@ -202,9 +210,5 @@ public class TankFire : MonoBehaviour
         if (reloadText != null)
             reloadText.gameObject.SetActive(visible);
 
-        // Keep the circular UI GameObject active so
-        // its timer continues updating.
-        if (circularReloadUI != null)
-            circularReloadUI.SetVisible(visible);
     }
 }

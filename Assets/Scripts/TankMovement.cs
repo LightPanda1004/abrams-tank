@@ -98,7 +98,7 @@ public class TankMovement : MonoBehaviour
         if (rb == null) return;
 
         Vector3 position = rb.position;
-        //position.y = fixedWorldY;
+        position.y = fixedWorldY;
         rb.position = position;
 
         float yRotation = rb.rotation.eulerAngles.y;

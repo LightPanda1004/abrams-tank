@@ -23,6 +23,14 @@ public class AntiDroneLauncher : MonoBehaviour
     private float scanTimer;
     private float reloadTimer;
 
+    public bool IsReloading => reloadTimer > 0f;
+    public float RemainingReload => Mathf.Max(0f, reloadTimer);
+    public float ReloadProgress =>
+        reloadTimer > 0f
+            ? 1f - Mathf.Clamp01(reloadTimer / Mathf.Max(0.1f, reloadTime))
+            : 1f;
+    public int AmmoRemaining => ammunition;
+
     private void Update()
     {
         reloadTimer -= Time.deltaTime;

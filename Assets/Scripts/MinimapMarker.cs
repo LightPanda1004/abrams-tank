@@ -19,11 +19,18 @@ public class MinimapMarker : MonoBehaviour
     [Min(0f)]
     public float edgePadding = 12f;
 
+    [Header("Multiplayer Colors")]
+    public Color localPlayerColor = new Color(0.05f, 0.3f, 1f, 1f);
+    public Color remotePlayerColor = new Color(1f, 0.12f, 0.08f, 1f);
+
     private GameObject tankMarkerInstance;
     private GameObject edgeMarkerInstance;
 
     private RectTransform tankMarkerRect;
     private RectTransform edgeMarkerRect;
+    private Sprite edgeArrowSprite;
+    private Texture2D edgeArrowTexture;
+    private bool playerColorInitialized;
 
     private void Start()
     {
@@ -79,6 +86,8 @@ public class MinimapMarker : MonoBehaviour
 
         SetupMarker(tankMarkerRect);
         SetupMarker(edgeMarkerRect);
+        ApplyPlayerMarkerColor();
+        SetupEdgeArrow();
 
         SetVisible(tankMarkerInstance, false);
         SetVisible(edgeMarkerInstance, false);
@@ -86,6 +95,9 @@ public class MinimapMarker : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (!playerColorInitialized)
+            ApplyPlayerMarkerColor();
+
         if (targetTank == null ||
             minimapCamera == null ||
             minimapDisplay == null)
@@ -190,6 +202,88 @@ public class MinimapMarker : MonoBehaviour
             image.raycastTarget = false;
     }
 
+    private void ApplyPlayerMarkerColor()
+    {
+        NetworkTankPlayer networkPlayer =
+            GetComponent<NetworkTankPlayer>();
+        TankHealth health = GetComponent<TankHealth>();
+
+        Color markerColor;
+        if (networkPlayer != null)
+        {
+            if (!networkPlayer.IsSpawned)
+                return;
+
+            markerColor = networkPlayer.IsOwner
+                ? localPlayerColor
+                : remotePlayerColor;
+        }
+        else if (health != null && health.isPlayerTank)
+        {
+            markerColor = localPlayerColor;
+        }
+        else
+        {
+            return;
+        }
+
+        Image tankImage = tankMarkerRect != null
+            ? tankMarkerRect.GetComponent<Image>()
+            : null;
+        if (tankImage != null)
+            tankImage.color = markerColor;
+
+        Image edgeImage = edgeMarkerRect != null
+            ? edgeMarkerRect.GetComponent<Image>()
+            : null;
+        if (edgeImage != null)
+            edgeImage.color = markerColor;
+
+        playerColorInitialized = true;
+    }
+
+    private void SetupEdgeArrow()
+    {
+        Image edgeImage = edgeMarkerRect != null
+            ? edgeMarkerRect.GetComponent<Image>()
+            : null;
+        if (edgeImage == null)
+            return;
+
+        const int textureSize = 32;
+        edgeArrowTexture = new Texture2D(
+            textureSize,
+            textureSize,
+            TextureFormat.RGBA32,
+            false
+        );
+        edgeArrowTexture.filterMode = FilterMode.Bilinear;
+
+        Color[] pixels = new Color[textureSize * textureSize];
+        for (int y = 0; y < textureSize; y++)
+        {
+            float halfWidth = (textureSize - 1 - y) * 0.42f;
+            int minimumX = Mathf.CeilToInt(textureSize * 0.5f - halfWidth);
+            int maximumX = Mathf.FloorToInt(textureSize * 0.5f + halfWidth);
+
+            for (int x = minimumX; x <= maximumX; x++)
+                pixels[y * textureSize + x] = Color.white;
+        }
+
+        edgeArrowTexture.SetPixels(pixels);
+        edgeArrowTexture.Apply();
+        edgeArrowSprite = Sprite.Create(
+            edgeArrowTexture,
+            new Rect(0f, 0f, textureSize, textureSize),
+            new Vector2(0.5f, 0.5f),
+            textureSize
+        );
+        edgeImage.sprite = edgeArrowSprite;
+        edgeImage.preserveAspect = true;
+
+        edgeMarkerRect.sizeDelta = new Vector2(18f, 18f);
+    }
+
     private void SetVisible(GameObject marker, bool visible)
     {
         if (marker != null && marker.activeSelf != visible)
@@ -216,5 +310,11 @@ public class MinimapMarker : MonoBehaviour
     private void OnDestroy()
     {
         RemoveMarkers();
+
+        if (edgeArrowSprite != null)
+            Destroy(edgeArrowSprite);
+
+        if (edgeArrowTexture != null)
+            Destroy(edgeArrowTexture);
     }
 }

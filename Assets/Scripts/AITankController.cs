@@ -422,6 +422,7 @@ public class AITankController : MonoBehaviour
 
         if (shellRb != null)
         {
+            shellRb.isKinematic = false;
             shellRb.collisionDetectionMode =
                 CollisionDetectionMode.ContinuousDynamic;
 

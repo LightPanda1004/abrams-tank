@@ -41,6 +41,8 @@ public class TankTrackMarks : MonoBehaviour
         Shader.PropertyToID("_Color");
     private readonly int baseMapColorId =
         Shader.PropertyToID("_BaseColor");
+    private RaycastHit[] raycastBuffer;
+    private readonly List<GameObject> activeMarks = new List<GameObject>();
 
     void Start()
     {
@@ -56,10 +58,32 @@ public class TankTrackMarks : MonoBehaviour
         }
 
         propertyBlock = new MaterialPropertyBlock();
+        raycastBuffer = new RaycastHit[8];
 
         lastLeftPosition = GetTrackPosition(-1f);
         lastRightPosition = GetTrackPosition(1f);
         initialized = true;
+    }
+
+    void OnDisable()
+    {
+        CleanupMarks();
+    }
+
+    void OnDestroy()
+    {
+        CleanupMarks();
+    }
+
+    private void CleanupMarks()
+    {
+        for (int i = activeMarks.Count - 1; i >= 0; i--)
+        {
+            GameObject mark = activeMarks[i];
+            if (mark != null)
+                Destroy(mark);
+            activeMarks.RemoveAt(i);
+        }
     }
 
     void Update()
@@ -100,24 +124,31 @@ public class TankTrackMarks : MonoBehaviour
         Vector3 rayOrigin =
             trackPosition + Vector3.up * raycastHeight;
 
-        RaycastHit[] hits = Physics.RaycastAll(
+        int hitCount = Physics.RaycastNonAlloc(
             rayOrigin,
             Vector3.down,
+            raycastBuffer,
             raycastDistance,
             groundLayers,
             QueryTriggerInteraction.Ignore);
 
-        if (hits.Length == 0)
+        if (hitCount == 0)
             return false;
 
-        System.Array.Sort(hits,
-            (a, b) => a.distance.CompareTo(b.distance));
+        System.Array.Sort(
+            raycastBuffer,
+            0,
+            hitCount,
+            Comparer<RaycastHit>.Create(
+                (a, b) => a.distance.CompareTo(b.distance)));
 
         RaycastHit groundHit = default;
         bool foundGround = false;
 
-        foreach (RaycastHit hit in hits)
+        for (int i = 0; i < hitCount; i++)
         {
+            RaycastHit hit = raycastBuffer[i];
+
             if (hit.transform == tankRoot ||
                 hit.transform.IsChildOf(tankRoot))
                 continue;
@@ -140,8 +171,8 @@ public class TankTrackMarks : MonoBehaviour
         Quaternion rotation = Quaternion.LookRotation(
             groundHit.normal, forward);
 
-        GameObject mark =
-            GameObject.CreatePrimitive(PrimitiveType.Quad);
+        GameObject mark = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        activeMarks.Add(mark);
 
         mark.name = "Tank Track Mark";
 
@@ -159,7 +190,6 @@ public class TankTrackMarks : MonoBehaviour
 
         Renderer markRenderer = mark.GetComponent<Renderer>();
 
-        // Use a unique material instance for this mark.
         markRenderer.material = trackMaterial;
 
         Color startColor = Color.black;
@@ -219,6 +249,9 @@ public class TankTrackMarks : MonoBehaviour
         }
 
         if (mark != null)
+        {
+            activeMarks.Remove(mark);
             Destroy(mark);
+        }
     }
 }

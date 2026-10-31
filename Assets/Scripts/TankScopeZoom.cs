@@ -23,10 +23,20 @@ public class TankScopeZoom : MonoBehaviour
 
     private void Start()
     {
+        if (tankCamera == null)
+        {
+            TankCameraFollow cameraFollow =
+                FindObjectOfType<TankCameraFollow>();
+
+            tankCamera = cameraFollow != null
+                ? cameraFollow.GetComponent<Camera>()
+                : Camera.main;
+        }
+
         if (tankCamera == null || CannonCamera == null)
         {
             Debug.LogError(
-                "TankScopeZoom: Assign both cameras in the Inspector!"
+                "TankScopeZoom: Could not find the player camera or cannon camera."
             );
             enabled = false;
             return;

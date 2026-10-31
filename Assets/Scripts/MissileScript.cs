@@ -31,16 +31,29 @@ public class HomingMissile : MonoBehaviour
     public float trailCleanupTime = 5f;
 
     private Rigidbody rb;
+    private Camera missileViewCamera;
     private Transform target;
     private Transform ownerRoot;
     private Vector3 flightDirection = Vector3.up;
     private float boostTimer;
     private bool homing;
     private bool exploded;
+    private bool droneImpact;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        missileViewCamera = GetComponentInChildren<Camera>();
+        if (missileViewCamera != null)
+        {
+            missileViewCamera.enabled = false;
+
+            AudioListener audioListener =
+                missileViewCamera.GetComponent<AudioListener>();
+            if (audioListener != null)
+                audioListener.enabled = false;
+        }
+
         rb.useGravity = false;
         rb.isKinematic = false;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -54,6 +67,9 @@ public class HomingMissile : MonoBehaviour
 
     void Start()
     {
+        if (missileViewCamera != null && GameDirector.Instance != null)
+            GameDirector.Instance.RegisterMissileViewCamera(missileViewCamera);
+
         boostTimer = boostDuration;
         rb.velocity = Vector3.up * boostSpeed;
         UpdateRotation(Vector3.up);
@@ -194,6 +210,7 @@ public class HomingMissile : MonoBehaviour
             return;
 
         exploded = true;
+        droneImpact = true;
 
         CreateExplosion();
 
@@ -258,6 +275,21 @@ public class HomingMissile : MonoBehaviour
             Destroy(trail.gameObject, trailCleanupTime);
         }
 
+        if (droneImpact)
+        {
+            if (missileViewCamera != null && GameDirector.Instance != null)
+            {
+                GameDirector.Instance.BeginMissileViewImpact(
+                    missileViewCamera,
+                    disappearDuration
+                );
+            }
+
+            missileViewCamera = null;
+            Destroy(gameObject);
+            return;
+        }
+
         StartCoroutine(DisappearSmoothly());
     }
 
@@ -282,4 +314,11 @@ public class HomingMissile : MonoBehaviour
 
         Destroy(gameObject);
     }
+
+    void OnDestroy()
+    {
+        if (missileViewCamera != null && GameDirector.Instance != null)
+            GameDirector.Instance.ClearMissileViewCamera(missileViewCamera);
+    }
 }
+
