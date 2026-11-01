@@ -12,7 +12,7 @@ public class TankMovement : MonoBehaviour
     public float turnSpeed = 45f;
 
     [Header("Keep Tank Level")]
-    public float fixedWorldY = 0.65f;
+    public float fixedWorldY = 0f;
 
     [Header("Current Speed")]
     public float currentSpeed = 0f;
