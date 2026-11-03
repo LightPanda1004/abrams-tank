@@ -119,8 +119,10 @@ public class TankFire : MonoBehaviour
 
         NetworkTankPlayer networkPlayer =
             GetComponent<NetworkTankPlayer>();
+        NetworkManager networkManager = NetworkManager.Singleton;
 
-        if (networkPlayer != null && networkPlayer.IsSpawned)
+        if (networkPlayer != null && networkPlayer.IsSpawned &&
+            networkManager != null && networkManager.IsListening)
         {
             networkPlayer.FireShellServerRpc(shellSpeed);
         }

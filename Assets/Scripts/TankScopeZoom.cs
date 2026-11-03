@@ -19,10 +19,18 @@ public class TankScopeZoom : MonoBehaviour
     public float scrollZoomSpeed = 3f;
 
     private bool isAiming = false;
+    private bool droneScopeMode;
     private int zoomIndex = 0;
+    private bool ownsScopeImage;
 
     private void Start()
     {
+        if (scopeImage != null && !scopeImage.scene.IsValid())
+        {
+            scopeImage = Instantiate(scopeImage);
+            ownsScopeImage = true;
+        }
+
         if (tankCamera == null)
         {
             TankCameraFollow cameraFollow =
@@ -65,8 +73,20 @@ public class TankScopeZoom : MonoBehaviour
         );
     }
 
+    private void OnDestroy()
+    {
+        if (ownsScopeImage && scopeImage != null)
+            Destroy(scopeImage);
+    }
+
     private void Update()
     {
+        if (droneScopeMode)
+        {
+            UpdateDroneScopeVisibility();
+            return;
+        }
+
         if (GameDirector.Instance != null &&
             (GameDirector.Instance.IsPaused ||
              GameDirector.Instance.IsGameOver))
@@ -134,6 +154,27 @@ public class TankScopeZoom : MonoBehaviour
         }
     }
 
+    public void SetDroneScopeMode(bool active)
+    {
+        droneScopeMode = active;
+        isAiming = false;
+        zoomIndex = 0;
+
+        if (CannonCamera != null)
+            CannonCamera.enabled = false;
+
+        if (active)
+            UpdateDroneScopeVisibility();
+        else if (scopeImage != null)
+            scopeImage.SetActive(false);
+    }
+
+    private void UpdateDroneScopeVisibility()
+    {
+        if (scopeImage != null)
+            scopeImage.SetActive(false);
+    }
+
     private void EnterAiming()
     {
         isAiming = true;
@@ -152,7 +193,7 @@ public class TankScopeZoom : MonoBehaviour
             scopeImage.SetActive(true);
     }
 
-    private void ExitAiming()
+    public void ExitAiming()
     {
         isAiming = false;
         zoomIndex = 0;

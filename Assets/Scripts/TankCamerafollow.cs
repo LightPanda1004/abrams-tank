@@ -1,6 +1,7 @@
 
 using UnityEngine;
 
+[DefaultExecutionOrder(10000)]
 public class TankCameraFollow : MonoBehaviour
 {
     [Header("Target")]
@@ -9,38 +10,21 @@ public class TankCameraFollow : MonoBehaviour
     [Header("Camera Position")]
     public Vector3 offset = new Vector3(0f, 6f, -10f);
 
-    [Header("Camera Movement")]
-    public float followSpeed = 5f;
-    public float rotationSpeed = 5f;
-
     void LateUpdate()
     {
         if (target == null)
             return;
 
-        // Calculate the camera position behind the tank.
-        Vector3 desiredPosition =
-            target.TransformPoint(offset);
+        Vector3 cameraPosition = target.TransformPoint(offset);
+        Vector3 lookPosition = target.position + Vector3.up * 2f;
+        Vector3 lookDirection = lookPosition - cameraPosition;
 
-        // Move the camera smoothly.
-        transform.position = Vector3.Lerp(
-            transform.position,
-            desiredPosition,
-            followSpeed * Time.deltaTime
-        );
+        if (lookDirection.sqrMagnitude <= 0.001f)
+            return;
 
-        // Look at a point above the tank.
-        Vector3 lookPosition = target.position
-                               + Vector3.up * 2f;
-
-        Quaternion desiredRotation = Quaternion.LookRotation(
-            lookPosition - transform.position
-        );
-
-        transform.rotation = Quaternion.Slerp(
-            transform.rotation,
-            desiredRotation,
-            rotationSpeed * Time.deltaTime
+        transform.SetPositionAndRotation(
+            cameraPosition,
+            Quaternion.LookRotation(lookDirection)
         );
     }
 }

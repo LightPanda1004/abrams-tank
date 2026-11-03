@@ -32,13 +32,20 @@ public class TankMovement : MonoBehaviour
                         | RigidbodyConstraints.FreezeRotationZ
                         | RigidbodyConstraints.FreezePositionY;
 
-        EnforcePositionAndRotation();
+        Vector3 position = rb.position;
+        position.y = fixedWorldY;
+        rb.position = position;
     }
 
     private void Update()
     {
         moveInput = Input.GetAxisRaw("Vertical");
         turnInput = Input.GetAxisRaw("Horizontal");
+    }
+
+    private void FixedUpdate()
+    {
+        if (rb == null) return;
 
         float targetSpeed = moveInput >= 0f
             ? moveInput * maxSpeed
@@ -50,19 +57,11 @@ public class TankMovement : MonoBehaviour
              Mathf.Abs(currentSpeed) < 0.01f);
 
         float rate = accelerating ? acceleration : deceleration;
-
         currentSpeed = Mathf.MoveTowards(
             currentSpeed,
             targetSpeed,
-            rate * Time.deltaTime
+            rate * Time.fixedDeltaTime
         );
-    }
-
-    private void FixedUpdate()
-    {
-        if (rb == null) return;
-
-        EnforcePositionAndRotation();
 
         float direction = currentSpeed < -0.01f ? -1f : 1f;
 
@@ -86,28 +85,6 @@ public class TankMovement : MonoBehaviour
             fixedWorldY,
             rb.position.z + movement.z
         ));
-    }
-
-    private void LateUpdate()
-    {
-        EnforcePositionAndRotation();
-    }
-
-    private void EnforcePositionAndRotation()
-    {
-        if (rb == null) return;
-
-        Vector3 position = rb.position;
-        position.y = fixedWorldY;
-        rb.position = position;
-
-        float yRotation = rb.rotation.eulerAngles.y;
-
-        rb.rotation = Quaternion.Euler(
-            0f,
-            yRotation,
-            0f
-        );
     }
 
     public float GetSpeed01()

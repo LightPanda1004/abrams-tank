@@ -16,10 +16,15 @@ public class TankRotorAnimation : MonoBehaviour
     [Tooltip("Use -1 if the rotor spins backward.")]
     public float rotationDirection = 1f;
 
+    private NetworkTankPlayer networkTankPlayer;
+
     void Start()
     {
         if (tankMovement == null)
             tankMovement = GetComponentInParent<TankMovement>();
+
+        networkTankPlayer =
+            GetComponentInParent<NetworkTankPlayer>();
 
         if (tankMovement == null)
         {
@@ -35,7 +40,9 @@ public class TankRotorAnimation : MonoBehaviour
     {
         if (tankMovement == null) return;
 
-        float speed = tankMovement.currentSpeed;
+        float speed = networkTankPlayer != null
+            ? networkTankPlayer.DisplayedTankSpeed
+            : tankMovement.currentSpeed;
 
         float degreesPerSecond =
             (speed / rotorRadius) * Mathf.Rad2Deg;

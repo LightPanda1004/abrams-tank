@@ -25,11 +25,15 @@ public class TankWheelRotation : MonoBehaviour
     public float rotationMultiplier = 1f;
 
     private Quaternion[] initialRotations;
+    private NetworkTankPlayer networkTankPlayer;
 
     void Start()
     {
         if (tankMovement == null)
             tankMovement = GetComponentInParent<TankMovement>();
+
+        networkTankPlayer =
+            GetComponentInParent<NetworkTankPlayer>();
 
         if (tankMovement == null)
         {
@@ -52,7 +56,10 @@ public class TankWheelRotation : MonoBehaviour
     void Update()
     {
         // Signed distance traveled, in meters.
-        float distance = tankMovement.currentSpeed * Time.deltaTime;
+        float speed = networkTankPlayer != null
+            ? networkTankPlayer.DisplayedTankSpeed
+            : tankMovement.currentSpeed;
+        float distance = speed * Time.deltaTime;
 
         // Convert distance into wheel rotation in degrees.
         float rotationDegrees =

@@ -1,6 +1,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.Netcode;
@@ -49,12 +50,15 @@ public class GameDirector : MonoBehaviour
 
     private bool gameOver;
     private bool victory;
+    private TankTeam multiplayerWinningTeam = TankTeam.Unassigned;
     private bool finishMenuVisible;
+    private bool multiplayerMatchEnded;
 
     private bool showPauseMenu;
     private bool showSettings;
     private bool showControlSettings;
     private bool showMultiplayerMenu;
+    private bool showTeamSelection;
     private bool showCreateRoomMenu;
     private bool showJoinRoomMenu;
 
@@ -73,6 +77,9 @@ public class GameDirector : MonoBehaviour
 
     private TankFire playerTankFire;
     private AntiDroneLauncher playerMissileLauncher;
+    private AntiDetectDronelauncher playerAntiDetectLauncher;
+    private NetworkTankPlayer localNetworkTankPlayer;
+    private int localPlayerEnemyTanksDestroyed;
     private TankHealth scenePlayerHealth;
     private TankMovement scenePlayerMovement;
     private Camera missileViewCamera;
@@ -80,12 +87,26 @@ public class GameDirector : MonoBehaviour
     private bool missileViewBlack;
     private LanRoomDiscovery lanRoomDiscovery;
     private NetworkManager lanNetworkManager;
+    private readonly Dictionary<ulong, TankTeam> approvedClientTeams =
+        new Dictionary<ulong, TankTeam>();
+    private readonly Dictionary<ulong, string> approvedClientNames =
+        new Dictionary<ulong, string>();
+    private readonly Dictionary<ulong, Vector3> approvedClientSpawnPositions =
+        new Dictionary<ulong, Vector3>();
+    private TankTeam selectedTeam = TankTeam.Unassigned;
+    private string playerNameInput = "Player";
     private string roomNameInput = "Abrams Room";
     private string roomStatusMessage = "";
     private Vector2 roomListScroll;
 
     private const ushort LanGamePort = 7777;
     private const int LanMaxPlayers = 4;
+    private const uint LegacyShellPrefabHashBeforeLastUpdate = 1732461695u;
+    private const uint LegacyShellPrefabHashBeforePrefabRefresh = 2144552063u;
+    private const float MultiplayerSpawnMinDistance = 15f;
+    private const float MultiplayerSpawnAreaEdgePadding = 8f;
+    private const float MultiplayerSpawnBuildingPadding = 8f;
+    private const float MultiplayerSpawnMaximumBuildingPadding = 20f;
 
     private GUIStyle statsStyle;
     private GUIStyle titleStyle;
@@ -106,12 +127,51 @@ public class GameDirector : MonoBehaviour
     public bool IsMultiplayerMode =>
         currentGameMode == GameMode.Multiplayer;
 
+    private int LocalPlayerEnemyTanksDestroyed =>
+        localNetworkTankPlayer != null
+            ? localNetworkTankPlayer.EnemyTanksDestroyed
+            : localPlayerEnemyTanksDestroyed;
+
     public Transform MultiplayerSpawnAnchor =>
         scenePlayerHealth != null
             ? scenePlayerHealth.transform
             : playerHealth != null
                 ? playerHealth.transform
                 : null;
+
+    public void SetLocalPlayerTank(NetworkTankPlayer tank)
+    {
+        if (tank == null)
+            return;
+
+        playerHealth = tank.GetComponent<TankHealth>();
+        playerMovement = tank.GetComponent<TankMovement>();
+        playerTankFire = tank.GetComponent<TankFire>();
+        playerMissileLauncher =
+            tank.GetComponentInChildren<AntiDroneLauncher>(true);
+        playerAntiDetectLauncher =
+            tank.GetComponentInChildren<AntiDetectDronelauncher>(true);
+        localNetworkTankPlayer = tank;
+        localPlayerEnemyTanksDestroyed = tank.EnemyTanksDestroyed;
+    }
+
+    public void ClearLocalPlayerTank(NetworkTankPlayer tank)
+    {
+        if (tank == null || playerHealth != tank.GetComponent<TankHealth>())
+            return;
+
+        localPlayerEnemyTanksDestroyed = tank.EnemyTanksDestroyed;
+        playerHealth = scenePlayerHealth;
+        playerMovement = scenePlayerMovement;
+        playerTankFire = playerHealth != null
+            ? playerHealth.GetComponent<TankFire>()
+            : null;
+        playerMissileLauncher = playerHealth != null
+            ? playerHealth.GetComponentInChildren<AntiDroneLauncher>(true)
+            : null;
+        playerAntiDetectLauncher = null;
+        localNetworkTankPlayer = null;
+    }
 
     private void Awake()
     {
@@ -313,6 +373,9 @@ public class GameDirector : MonoBehaviour
 
         if (tank.isPlayerTank)
         {
+            if (IsMultiplayerMode)
+                return;
+
             NotifyPlayerDestroyed();
             return;
         }
@@ -340,6 +403,79 @@ public class GameDirector : MonoBehaviour
         {
             EndGame(true);
         }
+    }
+
+    public void NotifyMultiplayerTankDestroyed(
+        NetworkTankPlayer destroyedPlayer)
+    {
+        NetworkManager manager = NetworkManager.Singleton;
+        if (!IsMultiplayerMode || multiplayerMatchEnded ||
+            destroyedPlayer == null || manager == null ||
+            !manager.IsServer || !manager.IsListening)
+        {
+            return;
+        }
+
+        bool blueHasSurvivors = false;
+        bool redHasSurvivors = false;
+        foreach (NetworkObject networkObject in
+                 manager.SpawnManager.SpawnedObjects.Values)
+        {
+            NetworkTankPlayer player =
+                networkObject.GetComponent<NetworkTankPlayer>();
+            TankHealth health =
+                networkObject.GetComponent<TankHealth>();
+            if (player == null || health == null ||
+                health.IsDestroyed || health.CurrentHealth <= 0f)
+            {
+                continue;
+            }
+
+            if (player.Team == TankTeam.Blue)
+                blueHasSurvivors = true;
+            else if (player.Team == TankTeam.Red)
+                redHasSurvivors = true;
+        }
+
+        TankTeam losingTeam = destroyedPlayer.Team;
+        if ((losingTeam == TankTeam.Blue && blueHasSurvivors) ||
+            (losingTeam == TankTeam.Red && redHasSurvivors) ||
+            (!blueHasSurvivors && !redHasSurvivors))
+        {
+            return;
+        }
+
+        multiplayerMatchEnded = true;
+        destroyedPlayer.BroadcastMultiplayerMatchEndClientRpc(
+            (byte)(losingTeam == TankTeam.Blue
+                ? TankTeam.Red
+                : TankTeam.Blue)
+        );
+    }
+
+    public void EndMultiplayerMatch(TankTeam winningTeam)
+    {
+        if (!IsMultiplayerMode || gameOver ||
+            (winningTeam != TankTeam.Blue &&
+             winningTeam != TankTeam.Red))
+        {
+            return;
+        }
+
+        gameOver = true;
+        multiplayerWinningTeam = winningTeam;
+        if (localNetworkTankPlayer != null)
+        {
+            localPlayerEnemyTanksDestroyed =
+                localNetworkTankPlayer.EnemyTanksDestroyed;
+        }
+        showMainMenu = false;
+        showPauseMenu = false;
+        showSettings = false;
+        showControlSettings = false;
+        finishMenuVisible = false;
+        SetCursor(true);
+        StartCoroutine(ShowFinishMenuAfterDelay());
     }
 
     // --------------------------------------------------
@@ -404,7 +540,10 @@ public class GameDirector : MonoBehaviour
 
         gameOver = false;
         victory = false;
+        localPlayerEnemyTanksDestroyed = 0;
+        multiplayerWinningTeam = TankTeam.Unassigned;
         finishMenuVisible = false;
+        multiplayerMatchEnded = false;
 
         showMainMenu = false;
         showPauseMenu = false;
@@ -433,6 +572,12 @@ public class GameDirector : MonoBehaviour
 
     private void CreateLanRoom()
     {
+        if (selectedTeam == TankTeam.Unassigned)
+        {
+            roomStatusMessage = "Select a team before creating a room.";
+            return;
+        }
+
         if (multiplayerTankPrefab == null)
         {
             roomStatusMessage = "Assign the multiplayer tank prefab on GameDirector.";
@@ -445,6 +590,8 @@ public class GameDirector : MonoBehaviour
         UnityTransport transport =
             lanNetworkManager.GetComponent<UnityTransport>();
         transport.SetConnectionData("127.0.0.1", LanGamePort, "0.0.0.0");
+        lanNetworkManager.NetworkConfig.ConnectionData =
+            CreateConnectionPayload();
 
         if (!lanNetworkManager.StartHost())
         {
@@ -470,6 +617,12 @@ public class GameDirector : MonoBehaviour
 
     private void JoinLanRoom(LanRoomInfo room)
     {
+        if (selectedTeam == TankTeam.Unassigned)
+        {
+            roomStatusMessage = "Select a team before joining a room.";
+            return;
+        }
+
         if (room == null || multiplayerTankPrefab == null)
         {
             roomStatusMessage = "This room cannot be joined.";
@@ -488,6 +641,8 @@ public class GameDirector : MonoBehaviour
         UnityTransport transport =
             lanNetworkManager.GetComponent<UnityTransport>();
         transport.SetConnectionData(room.address, (ushort)room.gamePort);
+        lanNetworkManager.NetworkConfig.ConnectionData =
+            CreateConnectionPayload();
 
         if (!lanNetworkManager.StartClient())
         {
@@ -533,38 +688,464 @@ public class GameDirector : MonoBehaviour
 
         TankFire prefabTankFire = multiplayerTankPrefab.GetComponent<TankFire>();
         if (prefabTankFire != null && prefabTankFire.shellPrefab != null)
+        {
             manager.AddNetworkPrefab(prefabTankFire.shellPrefab);
+            // These hashes were reported for shells during late-join synchronization.
+            AddLegacyShellPrefabHash(
+                manager,
+                prefabTankFire.shellPrefab,
+                LegacyShellPrefabHashBeforeLastUpdate
+            );
+            AddLegacyShellPrefabHash(
+                manager,
+                prefabTankFire.shellPrefab,
+                LegacyShellPrefabHashBeforePrefabRefresh
+            );
+        }
 
         manager.OnClientConnectedCallback += OnLanClientConnected;
         manager.OnClientDisconnectCallback += OnLanClientDisconnected;
         return manager;
     }
 
+    private static void AddLegacyShellPrefabHash(
+        NetworkManager manager,
+        GameObject shellPrefab,
+        uint legacyHash)
+    {
+        NetworkPrefab legacyShellPrefab = new NetworkPrefab
+        {
+            Override = NetworkPrefabOverride.Hash,
+            SourceHashToOverride = legacyHash,
+            Prefab = shellPrefab,
+            OverridingTargetPrefab = shellPrefab
+        };
+
+        if (!manager.NetworkConfig.Prefabs.Add(legacyShellPrefab))
+        {
+            Debug.LogError(
+                $"Could not register legacy shell prefab hash {legacyHash}."
+            );
+        }
+    }
+
     private void ApproveLanClient(
         NetworkManager.ConnectionApprovalRequest request,
         NetworkManager.ConnectionApprovalResponse response)
     {
-        response.Approved = lanNetworkManager == null ||
+        bool hasCapacity = lanNetworkManager == null ||
             lanNetworkManager.ConnectedClients.Count < LanMaxPlayers;
+        bool isLocalHost = lanNetworkManager != null &&
+            lanNetworkManager.IsHost &&
+            request.ClientNetworkId == lanNetworkManager.LocalClientId;
+        bool hasPayloadTeam = request.Payload != null &&
+            request.Payload.Length >= 1 &&
+            (request.Payload[0] == (byte)TankTeam.Blue ||
+             request.Payload[0] == (byte)TankTeam.Red);
+        TankTeam approvedTeam = hasPayloadTeam
+            ? (TankTeam)request.Payload[0]
+            : isLocalHost
+                ? selectedTeam
+                : TankTeam.Unassigned;
+        bool hasValidTeam = approvedTeam == TankTeam.Blue ||
+            approvedTeam == TankTeam.Red;
+
+        response.Approved = hasCapacity && hasValidTeam;
         response.CreatePlayerObject = response.Approved;
 
-        if (!response.Approved || MultiplayerSpawnAnchor == null)
+        if (!response.Approved)
+        {
+            response.Reason = !hasCapacity
+                ? "The room is full."
+                : "Select a team before joining.";
+            return;
+        }
+
+        approvedClientTeams[request.ClientNetworkId] =
+            approvedTeam;
+        approvedClientNames[request.ClientNetworkId] =
+            hasPayloadTeam && request.Payload.Length > 1
+                ? SanitizePlayerName(Encoding.UTF8.GetString(
+                    request.Payload, 1, request.Payload.Length - 1))
+                : SanitizePlayerName(playerNameInput);
+        Vector3 spawnPosition = GetRandomMultiplayerSpawnPosition();
+        approvedClientSpawnPositions[request.ClientNetworkId] =
+            spawnPosition;
+        response.Position = spawnPosition;
+        response.Rotation = Quaternion.Euler(
+            0f, Random.Range(0f, 360f), 0f);
+    }
+
+    public void AssignIdentityToPlayer(NetworkTankPlayer player)
+    {
+        if (player == null || lanNetworkManager == null ||
+            !lanNetworkManager.IsServer)
             return;
 
-        Transform spawnAnchor = MultiplayerSpawnAnchor;
-        response.Position = spawnAnchor.position +
-            spawnAnchor.right * ((float)request.ClientNetworkId * 7f);
-        response.Rotation = Quaternion.Euler(
-            0f,
-            spawnAnchor.eulerAngles.y,
-            0f
+        TankTeam team;
+        if (!approvedClientTeams.TryGetValue(
+                player.OwnerClientId, out team))
+        {
+            if (player.OwnerClientId == lanNetworkManager.LocalClientId)
+                team = selectedTeam;
+            else
+            {
+                Debug.LogError(
+                    "No approved team was recorded for network client " +
+                    player.OwnerClientId + ".",
+                    player);
+                return;
+            }
+        }
+
+        string playerName;
+        if (!approvedClientNames.TryGetValue(
+                player.OwnerClientId, out playerName))
+            playerName = "Player";
+
+        player.SetServerIdentity(team, playerName);
+    }
+
+    private byte[] CreateConnectionPayload()
+    {
+        byte[] nameBytes = Encoding.UTF8.GetBytes(
+            SanitizePlayerName(playerNameInput));
+        byte[] payload = new byte[nameBytes.Length + 1];
+        payload[0] = (byte)selectedTeam;
+        System.Buffer.BlockCopy(nameBytes, 0, payload, 1, nameBytes.Length);
+        return payload;
+    }
+
+    private string SanitizePlayerName(string playerName)
+    {
+        string trimmedName = string.IsNullOrWhiteSpace(playerName)
+            ? "Player"
+            : playerName.Trim();
+        StringBuilder safeName = new StringBuilder(trimmedName.Length);
+        foreach (char character in trimmedName)
+        {
+            if (char.IsControl(character))
+                continue;
+
+            safeName.Append(character);
+        }
+
+        string cleanedName = safeName.Length > 0
+            ? safeName.ToString()
+            : "Player";
+        byte[] encodedName = Encoding.UTF8.GetBytes(cleanedName);
+        int byteLength = Mathf.Min(encodedName.Length, 48);
+        while (byteLength > 0)
+        {
+            string truncatedName = Encoding.UTF8.GetString(
+                encodedName, 0, byteLength);
+            if (Encoding.UTF8.GetByteCount(truncatedName) <= 48)
+                return truncatedName;
+
+            byteLength--;
+        }
+
+        return "Player";
+    }
+
+    private Vector3 GetRandomMultiplayerSpawnPosition()
+    {
+        Transform anchor = MultiplayerSpawnAnchor;
+        Vector3 center = anchor != null ? anchor.position : Vector3.zero;
+        Terrain terrain = Terrain.activeTerrain;
+        if (terrain == null)
+        {
+            Terrain[] terrains = FindObjectsOfType<Terrain>();
+            if (terrains.Length > 0)
+                terrain = terrains[0];
+        }
+
+        if (TryGetFenceEnclosedBounds(out Bounds fencedArea))
+        {
+            float minimumX =
+                fencedArea.min.x + MultiplayerSpawnAreaEdgePadding;
+            float maximumX =
+                fencedArea.max.x - MultiplayerSpawnAreaEdgePadding;
+            float minimumZ =
+                fencedArea.min.z + MultiplayerSpawnAreaEdgePadding;
+            float maximumZ =
+                fencedArea.max.z - MultiplayerSpawnAreaEdgePadding;
+
+            if (minimumX < maximumX && minimumZ < maximumZ)
+            {
+                Vector3 lastPosition = new Vector3(
+                    fencedArea.center.x, 0f, fencedArea.center.z);
+                for (int attempt = 0; attempt < 160; attempt++)
+                {
+                    Vector3 candidate = new Vector3(
+                        Random.Range(minimumX, maximumX),
+                        0f,
+                        Random.Range(minimumZ, maximumZ)
+                    );
+                    lastPosition = candidate;
+
+                    if (!IsMultiplayerSpawnPositionClear(candidate) ||
+                        IsTooCloseToConnectedPlayer(candidate))
+                        continue;
+
+                    return candidate;
+                }
+
+                Debug.LogWarning(
+                    "Could not find a clear multiplayer spawn inside the " +
+                    "fence bounds; using an in-bounds random position.",
+                    this);
+                return lastPosition;
+            }
+
+            Debug.LogWarning(
+                "The fence bounds are too small for multiplayer spawning; " +
+                "using nearby scene objects instead.",
+                this);
+        }
+
+        List<Bounds> landmarks = new List<Bounds>();
+        Collider[] colliders = FindObjectsOfType<Collider>();
+        foreach (Collider worldCollider in colliders)
+        {
+            if (worldCollider == null || !worldCollider.enabled ||
+                worldCollider.isTrigger ||
+                worldCollider.GetComponentInParent<Terrain>() != null ||
+                !IsStaticWorldObject(worldCollider.transform) ||
+                IsPlayerOrDynamicObject(worldCollider.transform))
+                continue;
+
+            landmarks.Add(worldCollider.bounds);
+        }
+
+        if (landmarks.Count == 0)
+        {
+            Renderer[] renderers = FindObjectsOfType<Renderer>();
+            foreach (Renderer worldRenderer in renderers)
+            {
+                if (worldRenderer == null || !worldRenderer.enabled ||
+                    worldRenderer.GetComponentInParent<Terrain>() != null ||
+                    !IsStaticWorldObject(worldRenderer.transform) ||
+                    IsPlayerOrDynamicObject(worldRenderer.transform))
+                    continue;
+
+                landmarks.Add(worldRenderer.bounds);
+            }
+        }
+
+        if (landmarks.Count == 0)
+        {
+            Debug.LogError(
+                "No static scene objects were found for multiplayer spawn placement.",
+                this);
+            return new Vector3(center.x, 0f, center.z);
+        }
+
+        Vector3 terrainOrigin = terrain != null
+            ? terrain.transform.position
+            : Vector3.zero;
+        Vector3 terrainSize = terrain != null && terrain.terrainData != null
+            ? terrain.terrainData.size
+            : Vector3.zero;
+        Vector3 lastCandidate = new Vector3(center.x, 0f, center.z);
+        bool foundCandidateOnTerrain = terrain == null;
+
+        for (int attempt = 0; attempt < 120; attempt++)
+        {
+            Bounds landmark = landmarks[Random.Range(0, landmarks.Count)];
+            Vector2 direction = Random.insideUnitCircle;
+            if (direction.sqrMagnitude < 0.001f)
+                direction = Vector2.right;
+            direction.Normalize();
+
+            float landmarkExtent =
+                Mathf.Abs(direction.x) * landmark.extents.x +
+                Mathf.Abs(direction.y) * landmark.extents.z;
+            float padding = Random.Range(
+                MultiplayerSpawnBuildingPadding,
+                MultiplayerSpawnMaximumBuildingPadding
+            );
+            Vector3 candidate = new Vector3(
+                landmark.center.x + direction.x * (landmarkExtent + padding),
+                0f,
+                landmark.center.z + direction.y * (landmarkExtent + padding)
+            );
+            lastCandidate = candidate;
+
+            if (terrain != null && terrainSize != Vector3.zero &&
+                (candidate.x < terrainOrigin.x ||
+                 candidate.x > terrainOrigin.x + terrainSize.x ||
+                 candidate.z < terrainOrigin.z ||
+                 candidate.z > terrainOrigin.z + terrainSize.z))
+                continue;
+
+            lastCandidate = candidate;
+            foundCandidateOnTerrain = true;
+
+            if (!IsMultiplayerSpawnPositionClear(candidate))
+                continue;
+
+            if (!IsTooCloseToConnectedPlayer(candidate))
+                return candidate;
+        }
+
+        Debug.LogWarning(
+            "Could not find a clear multiplayer spawn near a scene object; " +
+            "using the last in-bounds position sampled.",
+            this);
+        if (foundCandidateOnTerrain)
+            return lastCandidate;
+
+        Debug.LogError(
+            "Scene objects suitable for spawning were outside the active terrain.",
+            this);
+        return new Vector3(center.x, 0f, center.z);
+    }
+
+    private bool TryGetFenceEnclosedBounds(out Bounds bounds)
+    {
+        bounds = default;
+        GameObject fenceObject = GameObject.Find("Fence");
+        if (fenceObject == null)
+            return false;
+
+        Renderer[] fenceRenderers =
+            fenceObject.GetComponentsInChildren<Renderer>(true);
+        bool hasBounds = false;
+
+        foreach (Renderer fenceRenderer in fenceRenderers)
+        {
+            if (fenceRenderer == null || !fenceRenderer.enabled)
+                continue;
+
+            if (!hasBounds)
+            {
+                bounds = fenceRenderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                bounds.Encapsulate(fenceRenderer.bounds);
+            }
+        }
+
+        if (!hasBounds)
+        {
+            Collider[] fenceColliders =
+                fenceObject.GetComponentsInChildren<Collider>(true);
+            foreach (Collider fenceCollider in fenceColliders)
+            {
+                if (fenceCollider == null || !fenceCollider.enabled)
+                    continue;
+
+                if (!hasBounds)
+                {
+                    bounds = fenceCollider.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(fenceCollider.bounds);
+                }
+            }
+        }
+
+        return hasBounds;
+    }
+
+    private bool IsTooCloseToConnectedPlayer(Vector3 candidate)
+    {
+        if (lanNetworkManager == null)
+            return false;
+
+        foreach (NetworkClient client in
+                 lanNetworkManager.ConnectedClients.Values)
+        {
+            if (client.PlayerObject == null)
+                continue;
+
+            Vector3 existingPosition =
+                client.PlayerObject.transform.position;
+            existingPosition.y = 0f;
+
+            if (Vector3.Distance(candidate, existingPosition) <
+                MultiplayerSpawnMinDistance)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsStaticWorldObject(Transform target)
+    {
+        for (Transform current = target; current != null; current = current.parent)
+        {
+            if (current.gameObject.isStatic)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsPlayerOrDynamicObject(Transform target)
+    {
+        if (target.GetComponentInParent<TankHealth>() != null ||
+            target.GetComponentInParent<NetworkObject>() != null)
+            return true;
+
+        Rigidbody body = target.GetComponentInParent<Rigidbody>();
+        return body != null && !body.isKinematic;
+    }
+
+    private bool IsMultiplayerSpawnPositionClear(Vector3 position)
+    {
+        Collider[] overlaps = Physics.OverlapSphere(
+            position + Vector3.up * 2f,
+            3.5f,
+            Physics.AllLayers,
+            QueryTriggerInteraction.Ignore
         );
+
+        foreach (Collider overlap in overlaps)
+        {
+            if (overlap == null ||
+                overlap.GetComponentInParent<Terrain>() != null ||
+                overlap.GetComponentInParent<TankHealth>() != null)
+                continue;
+
+            return false;
+        }
+
+        return true;
     }
 
     private void OnLanClientConnected(ulong clientId)
     {
-        if (lanNetworkManager == null ||
-            clientId != lanNetworkManager.LocalClientId)
+        if (lanNetworkManager == null)
+            return;
+
+        if (lanNetworkManager.IsServer)
+        {
+            if (!approvedClientSpawnPositions.ContainsKey(clientId) &&
+                lanNetworkManager.IsHost &&
+                clientId == lanNetworkManager.LocalClientId)
+            {
+                approvedClientTeams[clientId] = selectedTeam;
+                approvedClientNames[clientId] =
+                    SanitizePlayerName(playerNameInput);
+                approvedClientSpawnPositions[clientId] =
+                    GetRandomMultiplayerSpawnPosition();
+            }
+
+            if (approvedClientSpawnPositions.TryGetValue(
+                    clientId, out Vector3 spawnPosition))
+            {
+                StartCoroutine(
+                    ApplyApprovedSpawnPosition(clientId, spawnPosition));
+            }
+        }
+
+        if (clientId != lanNetworkManager.LocalClientId)
             return;
 
         RemoveSceneAIObjects();
@@ -581,24 +1162,112 @@ public class GameDirector : MonoBehaviour
         SetCursor(false);
     }
 
+    private IEnumerator ApplyApprovedSpawnPosition(
+        ulong clientId,
+        Vector3 spawnPosition)
+    {
+        NetworkClient client = null;
+        for (int frame = 0; frame < 120; frame++)
+        {
+            if (lanNetworkManager == null ||
+                !lanNetworkManager.IsListening)
+                yield break;
+
+            if (lanNetworkManager.ConnectedClients.TryGetValue(
+                    clientId, out client) &&
+                client.PlayerObject != null &&
+                client.PlayerObject.IsSpawned)
+                break;
+
+            yield return null;
+        }
+
+        if (client == null || client.PlayerObject == null ||
+            !client.PlayerObject.IsSpawned)
+        {
+            Debug.LogError(
+                "Could not apply the approved spawn position for client " +
+                clientId + ".",
+                this);
+            yield break;
+        }
+
+        Quaternion spawnRotation =
+            Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        Transform playerTransform = client.PlayerObject.transform;
+        playerTransform.SetPositionAndRotation(
+            spawnPosition, spawnRotation);
+
+        Rigidbody playerRigidbody =
+            playerTransform.GetComponent<Rigidbody>();
+        if (playerRigidbody != null)
+        {
+            playerRigidbody.position = spawnPosition;
+            playerRigidbody.rotation = spawnRotation;
+        }
+
+        NetworkTankPlayer player =
+            playerTransform.GetComponent<NetworkTankPlayer>();
+        if (player == null)
+        {
+            Debug.LogError(
+                "The multiplayer player prefab is missing " +
+                "NetworkTankPlayer.",
+                playerTransform);
+            yield break;
+        }
+
+        if (approvedClientTeams.TryGetValue(clientId, out TankTeam team) &&
+            approvedClientNames.TryGetValue(clientId, out string playerName))
+        {
+            player.SetServerIdentity(team, playerName);
+        }
+
+        if (clientId != lanNetworkManager.LocalClientId)
+        {
+            player.SetSpawnPositionClientRpc(
+                spawnPosition,
+                spawnRotation,
+                new ClientRpcParams
+                {
+                    Send = new ClientRpcSendParams
+                    {
+                        TargetClientIds = new[] { clientId }
+                    }
+                });
+        }
+    }
+
     private void OnLanClientDisconnected(ulong clientId)
     {
+        approvedClientTeams.Remove(clientId);
+        approvedClientNames.Remove(clientId);
+        approvedClientSpawnPositions.Remove(clientId);
+
         if (lanNetworkManager == null ||
             clientId != lanNetworkManager.LocalClientId ||
             lanNetworkManager.IsHost)
             return;
 
         NetworkManager disconnectedManager = lanNetworkManager;
+        string disconnectReason = disconnectedManager.DisconnectReason;
         lanNetworkManager = null;
         disconnectedManager.OnClientConnectedCallback -= OnLanClientConnected;
         disconnectedManager.OnClientDisconnectCallback -= OnLanClientDisconnected;
         disconnectedManager.Shutdown();
         Destroy(disconnectedManager.gameObject);
 
+        string failureMessage = string.IsNullOrWhiteSpace(disconnectReason)
+            ? "Connection lost. Select a room to try again."
+            : "Connection failed: " + disconnectReason;
+        Debug.LogWarning(failureMessage, this);
+
         showMainMenu = true;
         showMultiplayerMenu = true;
+        showTeamSelection = false;
+        showCreateRoomMenu = false;
         showJoinRoomMenu = true;
-        roomStatusMessage = "Disconnected from the room.";
+        roomStatusMessage = failureMessage;
         if (lanRoomDiscovery != null)
             lanRoomDiscovery.StartSearching();
         Time.timeScale = 0f;
@@ -611,6 +1280,12 @@ public class GameDirector : MonoBehaviour
         currentGameMode = GameMode.Multiplayer;
         totalAITanks = 0;
         destroyedTanks = 0;
+        localPlayerEnemyTanksDestroyed = 0;
+        gameOver = false;
+        victory = false;
+        finishMenuVisible = false;
+        multiplayerWinningTeam = TankTeam.Unassigned;
+        multiplayerMatchEnded = false;
 
         if (playerHealth != null)
             playerHealth.gameObject.SetActive(false);
@@ -735,6 +1410,13 @@ public class GameDirector : MonoBehaviour
     {
         Time.timeScale = 1f;
 
+        if (IsMultiplayerMode)
+        {
+            if (lanRoomDiscovery != null)
+                lanRoomDiscovery.StopAdvertising();
+            CleanupLanNetworkManager();
+        }
+
         SceneManager.LoadScene(
             SceneManager.GetActiveScene().buildIndex
         );
@@ -752,6 +1434,9 @@ public class GameDirector : MonoBehaviour
     private void QuitGame()
     {
         Time.timeScale = 1f;
+        if (lanRoomDiscovery != null)
+            lanRoomDiscovery.StopAdvertising();
+        CleanupLanNetworkManager();
         Application.Quit();
 
         Debug.Log("Exit requested.");
@@ -891,6 +1576,10 @@ public class GameDirector : MonoBehaviour
             buttonStyle))
         {
             showMultiplayerMenu = true;
+            showTeamSelection = true;
+            showCreateRoomMenu = false;
+            showJoinRoomMenu = false;
+            selectedTeam = TankTeam.Unassigned;
         }
 
         if (GUI.Button(
@@ -912,6 +1601,81 @@ public class GameDirector : MonoBehaviour
 
     private void DrawMultiplayerMenu(float x, float y, float width)
     {
+        if (showTeamSelection)
+        {
+            GUI.Label(
+                new Rect(x + 40f, y + 78f, width - 80f, 24f),
+                "PLAYER NAME",
+                statsStyle
+            );
+            playerNameInput = GUI.TextField(
+                new Rect(x + 40f, y + 102f, width - 80f, 34f),
+                playerNameInput,
+                32
+            );
+
+            GUI.Label(
+                new Rect(x + 40f, y + 142f, width - 80f, 24f),
+                "SELECT YOUR TEAM",
+                statsStyle
+            );
+
+            Color previousColor = GUI.backgroundColor;
+            GUI.backgroundColor = new Color(0.12f, 0.3f, 0.95f);
+            if (GUI.Button(
+                new Rect(x + 40f, y + 170f, (width - 100f) * 0.5f, 48f),
+                selectedTeam == TankTeam.Blue ? "BLUE TEAM  SELECTED" : "BLUE TEAM",
+                buttonStyle))
+            {
+                selectedTeam = TankTeam.Blue;
+            }
+
+            GUI.backgroundColor = new Color(0.9f, 0.16f, 0.12f);
+            if (GUI.Button(
+                new Rect(x + 60f + (width - 100f) * 0.5f, y + 170f,
+                    (width - 100f) * 0.5f, 48f),
+                selectedTeam == TankTeam.Red ? "RED TEAM  SELECTED" : "RED TEAM",
+                buttonStyle))
+            {
+                selectedTeam = TankTeam.Red;
+            }
+            GUI.backgroundColor = previousColor;
+
+            GUI.Label(
+                new Rect(x + 40f, y + 222f, width - 80f, 30f),
+                selectedTeam == TankTeam.Unassigned
+                    ? "Choose a team to continue."
+                    : "Selected: " + selectedTeam.ToString().ToUpperInvariant(),
+                statsStyle
+            );
+
+            bool canContinue = selectedTeam != TankTeam.Unassigned &&
+                !string.IsNullOrWhiteSpace(playerNameInput);
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = canContinue;
+            if (GUI.Button(
+                new Rect(x + 50f, y + 260f, width - 100f, 42f),
+                "CONTINUE",
+                buttonStyle))
+            {
+                showTeamSelection = false;
+                roomStatusMessage = "";
+            }
+            GUI.enabled = previousEnabled;
+
+            if (GUI.Button(
+                new Rect(x + 50f, y + 310f, width - 100f, 38f),
+                "BACK",
+                buttonStyle))
+            {
+                showTeamSelection = false;
+                showMultiplayerMenu = false;
+                selectedTeam = TankTeam.Unassigned;
+            }
+
+            return;
+        }
+
         if (showCreateRoomMenu)
         {
             GUI.Label(
@@ -1248,33 +2012,121 @@ public class GameDirector : MonoBehaviour
         float x = Screen.width - panelWidth - margin;
         float y = margin;
         float inset = 12f;
+        bool multiplayer = IsMultiplayerMode;
+        float layoutOffset = multiplayer ? 42f : 0f;
 
-        GUI.Box(new Rect(x, y, panelWidth, 238f), "", hudPanelStyle);
+        GUI.Box(
+            new Rect(x, y, panelWidth, multiplayer ? 280f : 238f),
+            "",
+            hudPanelStyle
+        );
         float countWidth = (panelWidth - inset * 2f - 8f) / 2f;
         Rect totalCard = new Rect(x + inset, y + 12f, countWidth, 48f);
         Rect destroyedCard = new Rect(totalCard.xMax + 8f, totalCard.y, countWidth, 48f);
-        GUI.Box(totalCard, "", hudBarBackgroundStyle);
-        GUI.Box(destroyedCard, "", hudBarBackgroundStyle);
-        GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 3f, countWidth - 16f, 16f), "AI TANKS", statsStyle);
-        GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 19f, countWidth - 16f, 25f), totalAITanks.ToString(), hudValueStyle);
-        GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 3f, countWidth - 16f, 16f), "DESTROYED", statsStyle);
-        GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 19f, countWidth - 16f, 25f), destroyedTanks.ToString(), hudValueStyle);
+        if (multiplayer)
+        {
+            Rect enemyDestroyedCard = new Rect(
+                x + inset, y + 12f, panelWidth - inset * 2f, 48f);
+            int enemyTanksDestroyed = LocalPlayerEnemyTanksDestroyed;
+            GUI.Box(enemyDestroyedCard, "", hudBarBackgroundStyle);
+            GUI.Label(
+                new Rect(enemyDestroyedCard.x + 8f,
+                    enemyDestroyedCard.y + 3f,
+                    enemyDestroyedCard.width - 16f, 16f),
+                "ENEMY TANKS DESTROYED",
+                statsStyle);
+            GUI.Label(
+                new Rect(enemyDestroyedCard.x + 8f,
+                    enemyDestroyedCard.y + 19f,
+                    enemyDestroyedCard.width - 16f, 25f),
+                enemyTanksDestroyed.ToString(),
+                hudValueStyle);
 
-        GUI.Label(new Rect(x + inset, y + 66f, panelWidth - inset * 2f, 18f), "WEAPON COOLDOWN", statsStyle);
-        float meterY = y + 120f;
+            GetMultiplayerTeamTankCounts(
+                out int blueTanksRemaining,
+                out int redTanksRemaining
+            );
+            Rect blueTeamCard = new Rect(
+                x + inset, y + 66f, countWidth, 36f);
+            Rect redTeamCard = new Rect(
+                blueTeamCard.xMax + 8f, blueTeamCard.y,
+                countWidth, 36f);
+            GUI.Box(blueTeamCard, "", hudBarBackgroundStyle);
+            GUI.Box(redTeamCard, "", hudBarBackgroundStyle);
+            GUI.Label(
+                new Rect(blueTeamCard.x + 6f, blueTeamCard.y + 1f,
+                    countWidth - 12f, 15f),
+                "BLUE TANKS LEFT",
+                statsStyle);
+            GUI.Label(
+                new Rect(redTeamCard.x + 6f, redTeamCard.y + 1f,
+                    countWidth - 12f, 15f),
+                "RED TANKS LEFT",
+                statsStyle);
+            Color previousGuiColor = GUI.color;
+            GUI.color = new Color(0.35f, 0.65f, 1f, 1f);
+            GUI.Label(
+                new Rect(blueTeamCard.x + 6f, blueTeamCard.y + 15f,
+                    countWidth - 12f, 20f),
+                blueTanksRemaining.ToString(),
+                hudValueStyle);
+            GUI.color = new Color(1f, 0.4f, 0.35f, 1f);
+            GUI.Label(
+                new Rect(redTeamCard.x + 6f, redTeamCard.y + 15f,
+                    countWidth - 12f, 20f),
+                redTanksRemaining.ToString(),
+                hudValueStyle);
+            GUI.color = previousGuiColor;
+        }
+        else
+        {
+            GUI.Box(totalCard, "", hudBarBackgroundStyle);
+            GUI.Box(destroyedCard, "", hudBarBackgroundStyle);
+            GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 3f, countWidth - 16f, 16f), "AI TANKS", statsStyle);
+            GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 19f, countWidth - 16f, 25f), totalAITanks.ToString(), hudValueStyle);
+            GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 3f, countWidth - 16f, 16f), "DESTROYED", statsStyle);
+            GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 19f, countWidth - 16f, 25f), destroyedTanks.ToString(), hudValueStyle);
+        }
+
+        GUI.Label(
+            new Rect(x + inset, y + 66f + layoutOffset,
+                panelWidth - inset * 2f, 18f),
+            "WEAPON COOLDOWN",
+            statsStyle);
+        float meterY = y + 120f + layoutOffset;
         float leftCenterX = x + panelWidth * 0.30f;
         float rightCenterX = x + panelWidth * 0.70f;
 
-        string missileValue = playerMissileLauncher == null
-            ? "N/A"
-            : playerMissileLauncher.IsReloading
-                ? playerMissileLauncher.RemainingReload.ToString("0.0") + "s"
-                : playerMissileLauncher.AmmoRemaining <= 0
+        string missileValue;
+        float missileProgress;
+        if (multiplayer)
+        {
+            missileValue = playerAntiDetectLauncher == null
+                ? "N/A"
+                : playerAntiDetectLauncher.AmmoRemaining <= 0
                     ? "EMPTY"
-                    : "READY";
-        float missileProgress = playerMissileLauncher != null
-            ? playerMissileLauncher.ReloadProgress
-            : 1f;
+                    : playerAntiDetectLauncher.IsReloading
+                        ? playerAntiDetectLauncher.AmmoRemaining + " | " +
+                          playerAntiDetectLauncher.RemainingReload
+                              .ToString("0.0") + "s"
+                        : playerAntiDetectLauncher.AmmoRemaining + " READY";
+            missileProgress = playerAntiDetectLauncher != null
+                ? playerAntiDetectLauncher.ReloadProgress
+                : 1f;
+        }
+        else
+        {
+            missileValue = playerMissileLauncher == null
+                ? "N/A"
+                : playerMissileLauncher.IsReloading
+                    ? playerMissileLauncher.RemainingReload.ToString("0.0") + "s"
+                    : playerMissileLauncher.AmmoRemaining <= 0
+                        ? "EMPTY"
+                        : "READY";
+            missileProgress = playerMissileLauncher != null
+                ? playerMissileLauncher.ReloadProgress
+                : 1f;
+        }
 
         string shellValue = playerTankFire == null
             ? "N/A"
@@ -1293,7 +2145,9 @@ public class GameDirector : MonoBehaviour
         float speedRatio = Mathf.Clamp01(speed / maxSpeed);
         int speedKph = Mathf.RoundToInt(speed * 3.6f);
 
-        Rect speedCard = new Rect(x + inset, y + 177f, panelWidth - inset * 2f, 49f);
+        Rect speedCard = new Rect(
+            x + inset, y + 177f + layoutOffset,
+            panelWidth - inset * 2f, 49f);
         GUI.Box(speedCard, "", hudBarBackgroundStyle);
         GUI.Label(new Rect(speedCard.x + 8f, speedCard.y + 3f, speedCard.width - 16f, 17f), "TANK SPEED", statsStyle);
         GUI.Label(new Rect(speedCard.x + speedCard.width - 88f, speedCard.y + 2f, 80f, 19f), speedKph + " km/h", hudValueStyle);
@@ -1320,6 +2174,38 @@ public class GameDirector : MonoBehaviour
         Rect healthBar = new Rect(healthCard.x + 12f, healthCard.y + 23f, healthCard.width - 24f, 12f);
         GUI.Box(healthBar, "", hudBarBackgroundStyle);
         GUI.Box(new Rect(healthBar.x + 2f, healthBar.y + 2f, (healthBar.width - 4f) * health, healthBar.height - 4f), "", hudBarFillStyle);
+    }
+
+    private void GetMultiplayerTeamTankCounts(
+        out int blueTanksRemaining,
+        out int redTanksRemaining)
+    {
+        blueTanksRemaining = 0;
+        redTanksRemaining = 0;
+
+        NetworkManager manager = NetworkManager.Singleton;
+        if (manager == null || !manager.IsListening)
+            return;
+
+        foreach (NetworkObject networkObject in
+                 manager.SpawnManager.SpawnedObjects.Values)
+        {
+            NetworkTankPlayer player =
+                networkObject.GetComponent<NetworkTankPlayer>();
+            TankHealth health =
+                networkObject.GetComponent<TankHealth>();
+            if (player == null || health == null ||
+                !player.HasTeam || health.IsDestroyed ||
+                health.CurrentHealth <= 0f)
+            {
+                continue;
+            }
+
+            if (player.Team == TankTeam.Blue)
+                blueTanksRemaining++;
+            else if (player.Team == TankTeam.Red)
+                redTanksRemaining++;
+        }
     }
 
     private void DrawRadialMeter(
@@ -1458,8 +2344,9 @@ public class GameDirector : MonoBehaviour
 
     private void DrawGameOverMenu()
     {
+        bool multiplayer = IsMultiplayerMode;
         float width = 380f;
-        float height = 320f;
+        float height = multiplayer ? 260f : 320f;
 
         float x = (Screen.width - width) / 2f;
         float y = (Screen.height - height) / 2f;
@@ -1468,14 +2355,20 @@ public class GameDirector : MonoBehaviour
 
         GUI.Label(
             new Rect(x + 20, y + 20, width - 40, 50),
-            victory ? "VICTORY!" : "GAME OVER",
+            multiplayer && multiplayerWinningTeam != TankTeam.Unassigned
+                ? multiplayerWinningTeam + " Team Win!!"
+                : victory ? "VICTORY!" : multiplayer ? "DEFEAT" : "GAME OVER",
             titleStyle
         );
 
+        string destroyedCount = multiplayer
+            ? LocalPlayerEnemyTanksDestroyed.ToString()
+            : destroyedTanks + " / " + totalAITanks;
         GUI.Label(
             new Rect(x + 20, y + 85, width - 40, 30),
-            "Destroyed AI Tanks: " + destroyedTanks +
-            " / " + totalAITanks,
+            multiplayer
+                ? "TANKS DESTROYED: " + destroyedCount
+                : "Destroyed AI Tanks: " + destroyedCount,
             statsStyle
         );
 
@@ -1489,19 +2382,20 @@ public class GameDirector : MonoBehaviour
 
         if (GUI.Button(
             new Rect(x + 50, y + 190, width - 100, 40),
-            "MAIN MENU",
+            multiplayer ? "EXIT" : "MAIN MENU",
             buttonStyle))
         {
-            ReturnToMainMenu();
+            if (multiplayer)
+                QuitGame();
+            else
+                ReturnToMainMenu();
         }
 
-        if (GUI.Button(
+        if (!multiplayer && GUI.Button(
             new Rect(x + 50, y + 245, width - 100, 35),
             "EXIT",
             buttonStyle))
-        {
             QuitGame();
-        }
     }
 
     // --------------------------------------------------

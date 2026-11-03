@@ -1,4 +1,5 @@
 
+using System.Collections;
 using UnityEngine;
 using Unity.Netcode;
 
@@ -34,7 +35,8 @@ public class TankHealth : MonoBehaviour
         if (healthBar != null)
             healthBar.UpdateHealth(currentHealth);
 
-        isDestroyed = currentHealth <= 0f;
+        if (currentHealth <= 0f && !isDestroyed)
+            DestroyTank();
     }
 
     void Awake()
@@ -87,7 +89,8 @@ private void DisableTank()
     foreach (MonoBehaviour script in scripts)
     {
         // Missing scripts can appear as null entries.
-        if (script == null || script == this)
+        if (script == null || script == this ||
+            script is NetworkBehaviour)
             continue;
 
         script.enabled = false;
@@ -132,33 +135,64 @@ private void DisableTank()
         {
             GameDirector.Instance.NotifyDestroyed(this);
         }
-        // Play the destruction effect, if assigned.
-        if (destructionExplosionPrefab != null && destroyedFireAndSmoke != null)
+        PlayDestructionEffects();
+
+        NetworkObject networkObject = GetComponent<NetworkObject>();
+        bool isNetworked = networkObject != null && networkObject.IsSpawned;
+
+        if (isNetworked && networkTankPlayer != null &&
+            NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.IsServer)
         {
-            GameObject Explodeffect = Instantiate(
-                destructionExplosionPrefab,
-                transform.position,
-                Quaternion.identity
-            );
-
-            Destroy(Explodeffect, 5f);
-
-            GameObject FireandSmoke = Instantiate(destroyedFireAndSmoke, transform.position + Vector3.up * 0.7f, Quaternion.identity);
-            Destroy(FireandSmoke, destroyDelay);
+            networkTankPlayer.NotifyMultiplayerTankDestroyed();
         }
 
-        // Despawn networked tanks before disabling their network behaviours.
-        NetworkObject networkObject = GetComponent<NetworkObject>();
+        DisableTank();
+
+        if (isNetworked)
+        {
+            if (NetworkManager.Singleton != null &&
+                NetworkManager.Singleton.IsServer)
+            {
+                StartCoroutine(DespawnAfterDelay(networkObject));
+            }
+        }
+        else
+        {
+            Destroy(gameObject, destroyDelay);
+        }
+    }
+
+    private void PlayDestructionEffects()
+    {
+        if (destructionExplosionPrefab == null ||
+            destroyedFireAndSmoke == null)
+            return;
+
+        GameObject explosion = Instantiate(
+            destructionExplosionPrefab,
+            transform.position,
+            Quaternion.identity
+        );
+        Destroy(explosion, 5f);
+
+        GameObject fireAndSmoke = Instantiate(
+            destroyedFireAndSmoke,
+            transform.position + Vector3.up * 0.7f,
+            Quaternion.identity
+        );
+        Destroy(fireAndSmoke, destroyDelay);
+    }
+
+    private IEnumerator DespawnAfterDelay(NetworkObject networkObject)
+    {
+        yield return new WaitForSeconds(destroyDelay);
+
         if (networkObject != null && networkObject.IsSpawned &&
             NetworkManager.Singleton != null &&
             NetworkManager.Singleton.IsServer)
         {
             networkObject.Despawn(true);
-        }
-        else
-        {
-            DisableTank();
-            Destroy(gameObject, destroyDelay);
         }
     }
 }

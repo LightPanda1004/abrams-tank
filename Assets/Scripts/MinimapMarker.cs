@@ -1,9 +1,23 @@
 
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class MinimapMarker : MonoBehaviour
 {
+    private static Camera localPlayerMinimapCamera;
+
+    public static void SetLocalPlayerCamera(Camera camera)
+    {
+        localPlayerMinimapCamera = camera;
+
+        MinimapMarker[] markers =
+            FindObjectsOfType<MinimapMarker>(true);
+
+        foreach (MinimapMarker marker in markers)
+            marker.SetMinimapCamera(camera);
+    }
+
     [Header("Target Tank")]
     public Transform targetTank;
 
@@ -19,18 +33,20 @@ public class MinimapMarker : MonoBehaviour
     [Min(0f)]
     public float edgePadding = 12f;
 
-    [Header("Multiplayer Colors")]
-    public Color localPlayerColor = new Color(0.05f, 0.3f, 1f, 1f);
-    public Color remotePlayerColor = new Color(1f, 0.12f, 0.08f, 1f);
+    [Header("Team Colors")]
+    [FormerlySerializedAs("localPlayerColor")]
+    public Color blueTeamColor = new Color(0.05f, 0.3f, 1f, 1f);
+    [FormerlySerializedAs("remotePlayerColor")]
+    public Color redTeamColor = new Color(1f, 0.12f, 0.08f, 1f);
 
     private GameObject tankMarkerInstance;
     private GameObject edgeMarkerInstance;
 
     private RectTransform tankMarkerRect;
     private RectTransform edgeMarkerRect;
+    private Camera tankMinimapCamera;
     private Sprite edgeArrowSprite;
     private Texture2D edgeArrowTexture;
-    private bool playerColorInitialized;
 
     private void Start()
     {
@@ -45,6 +61,12 @@ public class MinimapMarker : MonoBehaviour
             if (cameraObject != null)
                 minimapCamera = cameraObject.GetComponent<Camera>();
         }
+
+        if (tankMinimapCamera == null)
+            tankMinimapCamera = minimapCamera;
+
+        if (localPlayerMinimapCamera != null)
+            SetMinimapCamera(localPlayerMinimapCamera);
 
         if (minimapDisplay == null)
         {
@@ -95,8 +117,21 @@ public class MinimapMarker : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (!playerColorInitialized)
-            ApplyPlayerMarkerColor();
+        NetworkTankPlayer networkPlayer =
+            GetComponent<NetworkTankPlayer>();
+        if (networkPlayer != null && networkPlayer.IsSpawned)
+        {
+            if (!networkPlayer.HasTeam ||
+                NetworkTankPlayer.LocalPlayerTeam == TankTeam.Unassigned ||
+                networkPlayer.Team != NetworkTankPlayer.LocalPlayerTeam)
+            {
+                SetVisible(tankMarkerInstance, false);
+                SetVisible(edgeMarkerInstance, false);
+                return;
+            }
+        }
+
+        ApplyPlayerMarkerColor();
 
         if (targetTank == null ||
             minimapCamera == null ||
@@ -184,6 +219,26 @@ public class MinimapMarker : MonoBehaviour
             Quaternion.Euler(0f, 0f, angle);
     }
 
+    private void SetMinimapCamera(Camera camera)
+    {
+        if (camera == null)
+        {
+            minimapCamera = tankMinimapCamera;
+            return;
+        }
+
+        if (tankMinimapCamera == null && minimapCamera != camera)
+            tankMinimapCamera = minimapCamera;
+
+        minimapCamera = camera;
+    }
+
+    private void OnDisable()
+    {
+        SetVisible(tankMarkerInstance, false);
+        SetVisible(edgeMarkerInstance, false);
+    }
+
     private void SetupMarker(RectTransform rect)
     {
         if (rect == null)
@@ -209,18 +264,18 @@ public class MinimapMarker : MonoBehaviour
         TankHealth health = GetComponent<TankHealth>();
 
         Color markerColor;
-        if (networkPlayer != null)
+        if (networkPlayer != null && networkPlayer.IsSpawned)
         {
-            if (!networkPlayer.IsSpawned)
+            if (!networkPlayer.HasTeam)
                 return;
 
-            markerColor = networkPlayer.IsOwner
-                ? localPlayerColor
-                : remotePlayerColor;
+            markerColor = networkPlayer.Team == TankTeam.Red
+                ? redTeamColor
+                : blueTeamColor;
         }
         else if (health != null && health.isPlayerTank)
         {
-            markerColor = localPlayerColor;
+            markerColor = blueTeamColor;
         }
         else
         {
@@ -239,7 +294,6 @@ public class MinimapMarker : MonoBehaviour
         if (edgeImage != null)
             edgeImage.color = markerColor;
 
-        playerColorInitialized = true;
     }
 
     private void SetupEdgeArrow()

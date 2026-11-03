@@ -120,7 +120,7 @@ public class TankTurretMove : MonoBehaviour
         if (invertMouseY)
             mouseY = -mouseY;
 
-        // Mouse up raises the cannon by default.
+        // Mouse up lowers the cannon by default.
         ChangeCannonAngle(-mouseY * mouseSensitivityY);
     }
 
