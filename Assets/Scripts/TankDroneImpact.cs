@@ -21,6 +21,8 @@ public class TankDroneImpact : MonoBehaviour
 
     public float ExplosionEffectDuration =>
         Mathf.Max(0f, explosionEffectDuration);
+    public bool IsDeployed =>
+        droneController != null && droneController.IsDeployed;
     public NetworkTankPlayer NetworkPlayer =>
         droneController != null
             ? droneController.GetComponent<NetworkTankPlayer>()
@@ -122,6 +124,14 @@ public class TankDroneImpact : MonoBehaviour
             droneBody.useGravity = false;
             droneBody.isKinematic = true;
         }
+    }
+
+    public void DestroyFromTankShell(Vector3 impactPoint)
+    {
+        if (droneController != null)
+            droneController.ApplyTankShellImpact(impactPoint);
+        else
+            BeginDestruction(impactPoint, true);
     }
 
     private void Update()

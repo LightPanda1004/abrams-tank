@@ -263,18 +263,31 @@ public class TankShell : NetworkBehaviour
         TankDroneImpact droneImpact =
             other.GetComponentInParent<TankDroneImpact>();
 
+        if (droneImpact != null && !droneImpact.IsDeployed)
+            return;
+
         hasExploded = true;
 
         Vector3 hitPosition = GetImpactPoint(other, out Vector3 hitNormal);
 
         ApplyBlastForce(hitPosition);
 
-        if (droneImpact != null && isNetworkedShell &&
-            NetworkManager.Singleton.IsServer)
+        if (droneImpact != null)
         {
-            NetworkTankPlayer droneOwner = droneImpact.NetworkPlayer;
-            if (droneOwner != null && droneOwner.Team != ownerTeam)
-                droneOwner.DestroyDroneFromTankShell(hitPosition);
+            if (isNetworkedShell)
+            {
+                if (NetworkManager.Singleton.IsServer)
+                {
+                    NetworkTankPlayer droneOwner =
+                        droneImpact.NetworkPlayer;
+                    if (droneOwner != null)
+                        droneOwner.DestroyDroneFromTankShell(hitPosition);
+                }
+            }
+            else
+            {
+                droneImpact.DestroyFromTankShell(hitPosition);
+            }
         }
 
         // Apply damage to a tank.
@@ -378,12 +391,7 @@ public class TankShell : NetworkBehaviour
         if (targetPlayer != null && targetPlayer.Team == ownerTeam)
             return true;
 
-        TankDroneImpact droneImpact =
-            other.GetComponentInParent<TankDroneImpact>();
-        NetworkTankPlayer droneOwner = droneImpact != null
-            ? droneImpact.NetworkPlayer
-            : null;
-        return droneOwner != null && droneOwner.Team == ownerTeam;
+        return false;
     }
 
     private void ApplyBlastForce(

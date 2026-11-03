@@ -741,7 +741,7 @@ public class TankDronecontroll : MonoBehaviour
 
     private void SpinPropellers()
     {
-        if (!isDeployed)
+        if (!isDeployed || isDestroyed)
             return;
 
         foreach (Transform propeller in propellers)
@@ -805,7 +805,7 @@ public class TankDronecontroll : MonoBehaviour
         if (isDestroyed)
             return;
 
-        DestroyDrone(impactPoint, isLocalOwner, isLocalOwner);
+        DestroyDrone(impactPoint, true, isLocalOwner);
     }
 
     private void DestroyDrone(
@@ -931,7 +931,7 @@ public class TankDronecontroll : MonoBehaviour
             {
                 isDestroyed = true;
                 if (droneImpact != null)
-                    droneImpact.BeginDestruction(worldPosition, false);
+                    droneImpact.BeginDestruction(worldPosition, true);
             }
         }
         else
@@ -951,6 +951,9 @@ public class TankDronecontroll : MonoBehaviour
 
     private void UpdateRemoteDrone()
     {
+        if (isDestroyed)
+            return;
+
         if (!isDeployed)
         {
             if (droneTransform.parent != homeParent)
