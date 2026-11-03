@@ -23,13 +23,20 @@ public class AIDroneSpawner : MonoBehaviour
 
     private void Start()
     {
-        spawnTimer = spawnInterval;
+        spawnTimer = 0f;
     }
 
     private void Update()
     {
         if (dronePrefab == null || playerTank == null)
             return;
+
+        GameDirector gameDirector = GameDirector.Instance;
+        if (gameDirector != null &&
+            (gameDirector.IsPaused || gameDirector.IsMultiplayerMode))
+        {
+            return;
+        }
 
         spawnTimer -= Time.deltaTime;
 

@@ -127,6 +127,47 @@ public class GameDirector : MonoBehaviour
     public bool IsMultiplayerMode =>
         currentGameMode == GameMode.Multiplayer;
 
+    public Camera ActiveMissileViewCamera =>
+        missileViewVisible && !missileViewBlack &&
+        missileViewCamera != null && missileViewCamera.isActiveAndEnabled
+            ? missileViewCamera
+            : null;
+
+    public bool TryGetMissileViewRect(out Rect viewRect)
+    {
+        viewRect = default;
+        if (!missileViewVisible || missileViewCamera == null ||
+            missileViewCamera.targetTexture == null)
+        {
+            return false;
+        }
+
+        const float viewWidth = 512f;
+        const float viewHeight = 256f;
+        const float borderSize = 10f;
+        const float screenMargin = 20f;
+
+        float scale = Mathf.Min(
+            1f,
+            (Screen.width - screenMargin * 2f) /
+                (viewWidth + borderSize * 2f),
+            (Screen.height - screenMargin * 2f) /
+                (viewHeight + borderSize * 2f)
+        );
+
+        float scaledBorder = borderSize * scale;
+        float scaledWidth = viewWidth * scale;
+        float scaledHeight = viewHeight * scale;
+        viewRect = new Rect(
+            Screen.width - scaledWidth -
+                scaledBorder * 2f - screenMargin + scaledBorder,
+            screenMargin + scaledBorder,
+            scaledWidth,
+            scaledHeight
+        );
+        return true;
+    }
+
     private int LocalPlayerEnemyTanksDestroyed =>
         localNetworkTankPlayer != null
             ? localNetworkTankPlayer.EnemyTanksDestroyed
@@ -1474,37 +1515,21 @@ public class GameDirector : MonoBehaviour
 
     private void DrawMissileView()
     {
-        if (!missileViewVisible || missileViewCamera == null ||
-            missileViewCamera.targetTexture == null)
+        if (!TryGetMissileViewRect(out Rect viewRect))
             return;
 
-        const float viewWidth = 512f;
-        const float viewHeight = 256f;
-        const float borderSize = 10f;
-        const float screenMargin = 20f;
-
-        float scale = Mathf.Min(
-            1f,
-            (Screen.width - screenMargin * 2f) /
-                (viewWidth + borderSize * 2f),
-            (Screen.height - screenMargin * 2f) /
-                (viewHeight + borderSize * 2f)
+        float scaledBorder = viewRect.width / 512f * 10f;
+        Rect guiViewRect = new Rect(
+            viewRect.x,
+            Screen.height - viewRect.y - viewRect.height,
+            viewRect.width,
+            viewRect.height
         );
-
-        float scaledBorder = borderSize * scale;
-        float scaledWidth = viewWidth * scale;
-        float scaledHeight = viewHeight * scale;
         Rect frameRect = new Rect(
-            Screen.width - scaledWidth - scaledBorder * 2f - screenMargin,
-            Screen.height - scaledHeight - scaledBorder * 2f - screenMargin,
-            scaledWidth + scaledBorder * 2f,
-            scaledHeight + scaledBorder * 2f
-        );
-        Rect viewRect = new Rect(
-            frameRect.x + scaledBorder,
-            frameRect.y + scaledBorder,
-            scaledWidth,
-            scaledHeight
+            guiViewRect.x - scaledBorder,
+            guiViewRect.y - scaledBorder,
+            guiViewRect.width + scaledBorder * 2f,
+            guiViewRect.height + scaledBorder * 2f
         );
 
         Color previousColor = GUI.color;
@@ -1513,7 +1538,7 @@ public class GameDirector : MonoBehaviour
         GUI.color = previousColor;
 
         GUI.DrawTexture(
-            viewRect,
+            guiViewRect,
             missileViewBlack
                 ? Texture2D.blackTexture
                 : missileViewCamera.targetTexture,

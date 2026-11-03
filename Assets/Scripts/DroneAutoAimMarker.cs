@@ -15,11 +15,14 @@ public class DroneAutoAimMarker : MonoBehaviour
 
     private Transform currentTarget;
     private float scanTimer;
+    private TankScopeZoom scopeZoom;
 
     void Start()
     {
         if (playerCamera == null)
             playerCamera = Camera.main;
+
+        scopeZoom = FindObjectOfType<TankScopeZoom>();
 
         if (aimMarker != null)
             aimMarker.gameObject.SetActive(false);
@@ -27,92 +30,133 @@ public class DroneAutoAimMarker : MonoBehaviour
 
     void Update()
     {
-        if (playerCamera == null ||
-            targetCanvas == null ||
+        Camera viewCamera = GetActiveViewCamera(out Rect displayRect);
+        if (viewCamera == null || targetCanvas == null ||
             aimMarker == null)
+        {
+            if (aimMarker != null)
+                aimMarker.gameObject.SetActive(false);
             return;
+        }
 
         scanTimer -= Time.deltaTime;
 
         if (scanTimer <= 0f)
         {
             scanTimer = scanInterval;
-            FindNearestDrone();
+            FindNearestDrone(viewCamera);
         }
 
-        UpdateMarkerPosition();
+        UpdateMarkerPosition(viewCamera, displayRect);
     }
 
-   
-void FindNearestDrone()
-{
-    currentTarget = null;
-    float nearestDistance = detectionRange;
-
-    AIDroneController[] drones =
-        FindObjectsOfType<AIDroneController>();
-
-    foreach (AIDroneController drone in drones)
+    private Camera GetActiveViewCamera(out Rect displayRect)
     {
-        if (drone == null || !drone.gameObject.activeInHierarchy)
-            continue;
+        displayRect = default;
+        if (playerCamera == null)
+            playerCamera = Camera.main;
 
-        TankHealth health =
-            drone.GetComponentInParent<TankHealth>();
-
-        if (health != null && health.IsDestroyed)
-            continue;
-
-        float distance = playerTank != null
-            ? Vector3.Distance(playerTank.position, drone.transform.position)
-            : Vector3.Distance(playerCamera.transform.position,
-                               drone.transform.position);
-
-        if (distance <= detectionRange && distance < nearestDistance)
+        GameDirector gameDirector = GameDirector.Instance;
+        if (gameDirector != null &&
+            gameDirector.ActiveMissileViewCamera != null)
         {
-            nearestDistance = distance;
-            currentTarget = drone.transform;
+            if (gameDirector.TryGetMissileViewRect(out displayRect))
+                return gameDirector.ActiveMissileViewCamera;
+        }
+
+        if (scopeZoom == null)
+            scopeZoom = FindObjectOfType<TankScopeZoom>();
+
+        if (scopeZoom != null &&
+            scopeZoom.CannonCamera != null &&
+            scopeZoom.CannonCamera.isActiveAndEnabled)
+        {
+            displayRect = scopeZoom.CannonCamera.pixelRect;
+            return scopeZoom.CannonCamera;
+        }
+
+        if (playerCamera != null && playerCamera.isActiveAndEnabled)
+        {
+            displayRect = playerCamera.pixelRect;
+            return playerCamera;
+        }
+
+        return null;
+    }
+
+    private void FindNearestDrone(Camera viewCamera)
+    {
+        currentTarget = null;
+        float nearestDistance = detectionRange;
+
+        AIDroneController[] drones =
+            FindObjectsOfType<AIDroneController>();
+
+        foreach (AIDroneController drone in drones)
+        {
+            if (drone == null || !drone.gameObject.activeInHierarchy)
+                continue;
+
+            TankHealth health =
+                drone.GetComponentInParent<TankHealth>();
+
+            if (health != null && health.IsDestroyed)
+                continue;
+
+            float distance = playerTank != null
+                ? Vector3.Distance(
+                    playerTank.position,
+                    drone.transform.position
+                )
+                : Vector3.Distance(
+                    viewCamera.transform.position,
+                    drone.transform.position
+                );
+
+            if (distance <= detectionRange &&
+                distance < nearestDistance &&
+                IsInsideCameraView(viewCamera, drone.transform.position))
+            {
+                nearestDistance = distance;
+                currentTarget = drone.transform;
+            }
         }
     }
-}
 
-
-
-    void UpdateMarkerPosition()
+    private void UpdateMarkerPosition(
+        Camera viewCamera,
+        Rect displayRect)
     {
         if (currentTarget == null ||
-            playerCamera == null ||
+            viewCamera == null ||
             aimMarker == null)
         {
             aimMarker.gameObject.SetActive(false);
             return;
         }
 
-        // Convert the drone's world position to screen pixels.
-        Vector3 screenPos =
-            playerCamera.WorldToScreenPoint(currentTarget.position);
+        Vector3 viewportPosition =
+            viewCamera.WorldToViewportPoint(currentTarget.position);
 
         // The drone is behind the camera.
-        if (screenPos.z <= 0f)
+        if (viewportPosition.z <= 0f)
         {
             aimMarker.gameObject.SetActive(false);
             return;
         }
 
-        // Hide the marker when the drone is outside the camera view.
-        Rect cameraRect = playerCamera.pixelRect;
-
-        bool onScreen =
-            screenPos.x >= cameraRect.xMin &&
-            screenPos.x <= cameraRect.xMax &&
-            screenPos.y >= cameraRect.yMin &&
-            screenPos.y <= cameraRect.yMax;
-
-        if (!onScreen)
+        if (viewportPosition.x < 0f || viewportPosition.x > 1f ||
+            viewportPosition.y < 0f || viewportPosition.y > 1f)
         {
             aimMarker.gameObject.SetActive(false);
             return;
         }
+
+        Vector3 screenPos = new Vector3(
+            displayRect.x + viewportPosition.x * displayRect.width,
+            displayRect.y + viewportPosition.y * displayRect.height,
+            viewportPosition.z
+        );
 
         // Convert screen pixels into the marker parent's local coordinates.
         RectTransform parentRect =
@@ -140,6 +184,18 @@ void FindNearestDrone()
             aimMarker.anchoredPosition = localPoint;
             aimMarker.gameObject.SetActive(true);
         }
+    }
+
+    private static bool IsInsideCameraView(
+        Camera viewCamera,
+        Vector3 worldPosition)
+    {
+        Vector3 viewportPosition =
+            viewCamera.WorldToViewportPoint(worldPosition);
+
+        return viewportPosition.z > 0f &&
+               viewportPosition.x >= 0f && viewportPosition.x <= 1f &&
+               viewportPosition.y >= 0f && viewportPosition.y <= 1f;
     }
 
 }

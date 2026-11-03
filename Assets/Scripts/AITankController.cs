@@ -401,6 +401,10 @@ public class AITankController : MonoBehaviour
             firePoint.rotation
         );
 
+        TankShell shellScript = shell.GetComponent<TankShell>();
+        if (shellScript != null)
+            shellScript.SetOwner(transform);
+
         Collider[] shellColliders =
             shell.GetComponentsInChildren<Collider>();
 
