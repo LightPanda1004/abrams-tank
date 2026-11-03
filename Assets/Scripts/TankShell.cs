@@ -13,6 +13,8 @@ public class TankShell : NetworkBehaviour
     [Header("Impact Effect")]
     public GameObject explosionPrefab;
     public float explosionDestroyDelay = 5f;
+    public GameObject concreteImpactPrefab;
+    public float concreteImpactDestroyDelay = 4f;
     public float blastRadius = 5f;
     public float blastForce = 250f;
     public float blastUpwardsModifier = 0.5f;
@@ -269,6 +271,10 @@ public class TankShell : NetworkBehaviour
         hasExploded = true;
 
         Vector3 hitPosition = GetImpactPoint(other, out Vector3 hitNormal);
+        bool hitStaticMesh =
+            other is MeshCollider &&
+            other.attachedRigidbody == null &&
+            !other.isTrigger;
 
         ApplyBlastForce(hitPosition);
 
@@ -311,33 +317,54 @@ public class TankShell : NetworkBehaviour
         }
 
         if (isNetworkedShell)
-            ImpactClientRpc(hitPosition, hitNormal);
+            ImpactClientRpc(hitPosition, hitNormal, hitStaticMesh);
 
-        PlayImpactEffects(hitPosition, hitNormal);
+        PlayImpactEffects(hitPosition, hitNormal, hitStaticMesh);
     }
 
     [ClientRpc]
-    private void ImpactClientRpc(Vector3 hitPosition, Vector3 hitNormal)
+    private void ImpactClientRpc(
+        Vector3 hitPosition,
+        Vector3 hitNormal,
+        bool hitStaticMesh)
     {
         if (IsServer)
             return;
 
         ApplyBlastForce(hitPosition, true);
-        PlayImpactEffects(hitPosition, hitNormal);
+        PlayImpactEffects(hitPosition, hitNormal, hitStaticMesh);
     }
 
-    private void PlayImpactEffects(Vector3 hitPosition, Vector3 hitNormal)
+    private void PlayImpactEffects(
+        Vector3 hitPosition,
+        Vector3 hitNormal,
+        bool hitStaticMesh)
     {
         if (explosionPrefab != null)
         {
             GameObject effect = Instantiate(
                 explosionPrefab,
                 hitPosition,
-                Quaternion.LookRotation(hitNormal) *
-                    explosionPrefab.transform.rotation
+                explosionPrefab.transform.rotation
             );
 
             Destroy(effect, explosionDestroyDelay);
+        }
+
+        if (hitStaticMesh && concreteImpactPrefab != null)
+        {
+            Vector3 surfacePosition =
+                hitPosition + hitNormal * 0.02f;
+            Quaternion surfaceRotation =
+                Quaternion.LookRotation(hitNormal) *
+                concreteImpactPrefab.transform.rotation;
+            GameObject impact = Instantiate(
+                concreteImpactPrefab,
+                surfacePosition,
+                surfaceRotation
+            );
+
+            Destroy(impact, concreteImpactDestroyDelay);
         }
 
         BeginDisappearance();
@@ -368,10 +395,9 @@ public class TankShell : NetworkBehaviour
         }
 
         Vector3 closestPoint = other.bounds.ClosestPoint(currentPosition);
-        hitNormal = (closestPoint - other.bounds.center).normalized;
-
-        if (hitNormal.sqrMagnitude < 0.001f)
-            hitNormal = direction.sqrMagnitude > 0.001f ? -direction : Vector3.up;
+        hitNormal = direction.sqrMagnitude > 0.001f
+            ? -direction
+            : Vector3.up;
 
         return closestPoint;
     }

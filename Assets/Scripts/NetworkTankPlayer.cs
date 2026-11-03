@@ -115,7 +115,15 @@ public class NetworkTankPlayer : NetworkBehaviour
                 FindObjectOfType<TankCameraFollow>();
 
             if (cameraFollow != null)
+            {
                 cameraFollow.target = transform;
+                TankTurretMove turretControls =
+                    GetComponent<TankTurretMove>();
+                cameraFollow.rotationTarget =
+                    turretControls != null
+                        ? turretControls.turret
+                        : null;
+            }
 
             Camera playerMinimapCamera = null;
             foreach (Camera tankCamera in

@@ -32358,6 +32358,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 304469100584092220}
+  rotationTarget: {fileID: 4929558766976544112}
   offset: {x: 0, y: 5, z: -8}
 --- !u!1 &656163374 stripped
 GameObject:
