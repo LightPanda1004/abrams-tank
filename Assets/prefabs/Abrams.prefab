@@ -38,6 +38,7 @@ Transform:
   - {fileID: 5474561982132639608}
   - {fileID: 1077623083313996145}
   - {fileID: 8291053674155393894}
+  - {fileID: 2348721787693130594}
   m_Father: {fileID: 304469100159624057}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8348738115499469638
@@ -223,7 +224,6 @@ Transform:
   - {fileID: 4664460440958314381}
   - {fileID: 4929558766832159797}
   - {fileID: 1227230273806121810}
-  - {fileID: 2348721787693130594}
   - {fileID: 926866201748217027}
   - {fileID: 4978180594317802843}
   - {fileID: 734119677957256814}
@@ -298,6 +298,11 @@ MonoBehaviour:
   acceleration: 2
   deceleration: 3
   turnSpeed: 45
+  speedBoostKey: 304
+  speedBoostAmount: 5
+  speedBoostDuration: 5
+  speedBoostRampDuration: 0.1
+  speedBoostReturnDuration: 0.1
   fixedWorldY: 0
   currentSpeed: 0
 --- !u!114 &577886536211765232
@@ -390,6 +395,10 @@ MonoBehaviour:
   minFOV: 5
   maxFOV: 40
   scrollZoomSpeed: 3
+  hitShakeDuration: 0.9
+  hitShakeRotation: {x: 30, y: 40, z: 28}
+  hitShakePosition: 0.18
+  hitShakeFrequency: 35
 --- !u!114 &3529595372743985011
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -463,7 +472,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 1179590910
+  GlobalObjectIdHash: 1529611750
   InScenePlacedSourceGlobalObjectIdHash: 0
   AlwaysReplicateAsRoot: 0
   SynchronizeTransform: 1
@@ -1604,7 +1613,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 304469100159624057}
+  m_Father: {fileID: 4929558766832159797}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8062792738205766121
 MeshFilter:

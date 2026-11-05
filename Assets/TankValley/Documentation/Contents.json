@@ -1,0 +1,21 @@
+{
+  "map_size_m": [
+    768,
+    128,
+    768
+  ],
+  "heightmap_resolution": 1025,
+  "height_range_m": [
+    14.900007114444954,
+    90.65026552421666
+  ],
+  "trees": 760,
+  "large_rocks": 225,
+  "river_bridges": 3,
+  "team_bases": 2,
+  "scene_gameobjects": 1148,
+  "mesh_assets": 38,
+  "mesh_triangles": 134814,
+  "scene_path": "Assets/TankValley/Scenes/TankValley.unity",
+  "seed": 74129
+}

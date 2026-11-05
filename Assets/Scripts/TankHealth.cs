@@ -23,6 +23,7 @@ public class TankHealth : MonoBehaviour
 
     private bool isDestroyed = false;
     private NetworkTankPlayer networkTankPlayer;
+    private TankScopeZoom scopeZoom;
 
     public float CurrentHealth => currentHealth;
 
@@ -30,7 +31,11 @@ public class TankHealth : MonoBehaviour
 
     public void SetReplicatedHealth(float health)
     {
+        float previousHealth = currentHealth;
         currentHealth = Mathf.Clamp(health, 0f, maxHealth);
+
+        if (currentHealth < previousHealth)
+            NotifyPlayerHit();
 
         if (healthBar != null)
             healthBar.UpdateHealth(currentHealth);
@@ -43,6 +48,9 @@ public class TankHealth : MonoBehaviour
     {
         currentHealth = maxHealth;
         networkTankPlayer = GetComponent<NetworkTankPlayer>();
+        scopeZoom = GetComponentInChildren<TankScopeZoom>(true);
+        if (scopeZoom == null)
+            scopeZoom = GetComponentInParent<TankScopeZoom>();
 
         if (healthBar != null)
         {
@@ -52,6 +60,11 @@ public class TankHealth : MonoBehaviour
     }
 
     public void TakeDamage(float damage)
+    {
+        TakeDamage(damage, null);
+    }
+
+    public void TakeDamage(float damage, Transform attacker)
     {
         if (isDestroyed || damage <= 0f)
             return;
@@ -63,6 +76,15 @@ public class TankHealth : MonoBehaviour
 
         currentHealth -= damage;
         currentHealth = Mathf.Max(0f, currentHealth);
+        NotifyPlayerHit();
+
+        if (!isPlayerTank && attacker != null)
+        {
+            AITankController aiTankController =
+                GetComponent<AITankController>();
+            if (aiTankController != null)
+                aiTankController.NotifyAttackedBy(attacker);
+        }
 
         if (networkTankPlayer != null)
             networkTankPlayer.SetServerHealth(currentHealth);
@@ -78,6 +100,22 @@ public class TankHealth : MonoBehaviour
         {
             DestroyTank();
         }
+    }
+
+    private void NotifyPlayerHit()
+    {
+        if (!isPlayerTank)
+            return;
+
+        if (scopeZoom == null)
+        {
+            scopeZoom = GetComponentInChildren<TankScopeZoom>(true);
+            if (scopeZoom == null)
+                scopeZoom = GetComponentInParent<TankScopeZoom>();
+        }
+
+        if (scopeZoom != null)
+            scopeZoom.NotifyTankHit();
     }
     
 private void DisableTank()

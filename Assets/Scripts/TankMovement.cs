@@ -11,6 +11,13 @@ public class TankMovement : MonoBehaviour
     public float deceleration = 3f;
     public float turnSpeed = 45f;
 
+    [Header("Speed Boost")]
+    public KeyCode speedBoostKey = KeyCode.LeftShift;
+    public float speedBoostAmount = 10f;
+    public float speedBoostDuration = 5f;
+    public float speedBoostRampDuration = 1.5f;
+    public float speedBoostReturnDuration = 2f;
+
     [Header("Keep Tank Level")]
     public float fixedWorldY = 0f;
 
@@ -20,6 +27,11 @@ public class TankMovement : MonoBehaviour
     private Rigidbody rb;
     private float moveInput;
     private float turnInput;
+    private bool speedBoostActive;
+    private bool speedBoostReturning;
+    private float speedBoostElapsed;
+    private float speedBoostReturnElapsed;
+    private float speedBoostReturnStartAmount;
 
     private void Awake()
     {
@@ -41,6 +53,47 @@ public class TankMovement : MonoBehaviour
     {
         moveInput = Input.GetAxisRaw("Vertical");
         turnInput = Input.GetAxisRaw("Horizontal");
+
+        bool boostPressed = Input.GetKeyDown(speedBoostKey) ||
+            (speedBoostKey == KeyCode.LeftShift &&
+             Input.GetKeyDown(KeyCode.RightShift));
+        GameDirector gameDirector = GameDirector.Instance;
+        bool canControlTank = gameDirector == null ||
+            (!gameDirector.IsPaused && !gameDirector.IsGameOver);
+
+        if (boostPressed && canControlTank && !speedBoostActive &&
+            Mathf.Abs(moveInput) > 0.01f)
+        {
+            speedBoostActive = true;
+            speedBoostReturning = false;
+            speedBoostElapsed = 0f;
+            speedBoostReturnElapsed = 0f;
+        }
+
+        if (speedBoostActive)
+        {
+            if (!speedBoostReturning)
+            {
+                if (!IsSpeedBoostKeyHeld() ||
+                    speedBoostElapsed >= Mathf.Max(0f, speedBoostDuration))
+                {
+                    BeginSpeedBoostReturn();
+                }
+                else
+                {
+                    speedBoostElapsed += Time.deltaTime;
+                    if (speedBoostElapsed >=
+                        Mathf.Max(0f, speedBoostDuration))
+                    {
+                        BeginSpeedBoostReturn();
+                    }
+                }
+            }
+            else
+            {
+                speedBoostReturnElapsed += Time.deltaTime;
+            }
+        }
     }
 
     private void FixedUpdate()
@@ -50,6 +103,14 @@ public class TankMovement : MonoBehaviour
         float targetSpeed = moveInput >= 0f
             ? moveInput * maxSpeed
             : moveInput * reverseSpeed;
+        float normalTargetSpeed = targetSpeed;
+
+        float boostAmount = GetSpeedBoostAmount();
+        if (boostAmount > 0f && Mathf.Abs(moveInput) > 0.01f)
+        {
+            float boostDirection = Mathf.Sign(moveInput);
+            targetSpeed += boostDirection * boostAmount;
+        }
 
         bool accelerating =
             Mathf.Abs(targetSpeed) > Mathf.Abs(currentSpeed) &&
@@ -62,6 +123,7 @@ public class TankMovement : MonoBehaviour
             targetSpeed,
             rate * Time.fixedDeltaTime
         );
+        AdvanceSpeedBoost(normalTargetSpeed);
 
         float direction = currentSpeed < -0.01f ? -1f : 1f;
 
@@ -97,5 +159,65 @@ public class TankMovement : MonoBehaviour
         return Mathf.Clamp01(
             Mathf.Abs(currentSpeed) / highestSpeed
         );
+    }
+
+    private float GetSpeedBoostAmount()
+    {
+        if (!speedBoostActive)
+            return 0f;
+
+        if (speedBoostReturning)
+        {
+            float returnDuration =
+                Mathf.Max(0.01f, speedBoostReturnDuration);
+            float returnProgress = Mathf.Clamp01(
+                speedBoostReturnElapsed / returnDuration
+            );
+            return speedBoostReturnStartAmount *
+                   (1f - Mathf.SmoothStep(0f, 1f, returnProgress));
+        }
+
+        float rampDuration = Mathf.Max(0.01f, speedBoostRampDuration);
+        if (speedBoostElapsed < rampDuration)
+        {
+            float ramp = Mathf.Clamp01(speedBoostElapsed / rampDuration);
+            return speedBoostAmount * Mathf.SmoothStep(0f, 1f, ramp);
+        }
+
+        return speedBoostAmount;
+    }
+
+    private void AdvanceSpeedBoost(float normalTargetSpeed)
+    {
+        if (!speedBoostActive || !speedBoostReturning)
+            return;
+
+        if (speedBoostReturnElapsed >=
+                Mathf.Max(0.01f, speedBoostReturnDuration) &&
+            Mathf.Abs(currentSpeed - normalTargetSpeed) <= 0.1f)
+        {
+            speedBoostActive = false;
+            speedBoostReturning = false;
+            speedBoostElapsed = 0f;
+            speedBoostReturnElapsed = 0f;
+            speedBoostReturnStartAmount = 0f;
+        }
+    }
+
+    private bool IsSpeedBoostKeyHeld()
+    {
+        return Input.GetKey(speedBoostKey) ||
+               (speedBoostKey == KeyCode.LeftShift &&
+                Input.GetKey(KeyCode.RightShift));
+    }
+
+    private void BeginSpeedBoostReturn()
+    {
+        if (speedBoostReturning)
+            return;
+
+        speedBoostReturnStartAmount = GetSpeedBoostAmount();
+        speedBoostReturning = true;
+        speedBoostReturnElapsed = 0f;
     }
 }

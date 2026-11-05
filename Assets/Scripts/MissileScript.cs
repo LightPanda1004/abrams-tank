@@ -168,6 +168,12 @@ public class HomingMissile : MonoBehaviour
         if (exploded)
             return;
 
+        if (target == null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         if (!homing)
         {
             boostTimer -= Time.fixedDeltaTime;
@@ -178,12 +184,6 @@ public class HomingMissile : MonoBehaviour
             if (boostTimer <= 0f)
                 homing = true;
 
-            return;
-        }
-
-        if (target == null)
-        {
-            rb.velocity = Vector3.zero;
             return;
         }
 

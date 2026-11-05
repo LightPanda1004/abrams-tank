@@ -18,10 +18,20 @@ public class TankScopeZoom : MonoBehaviour
     public float maxFOV = 40f;
     public float scrollZoomSpeed = 3f;
 
+    [Header("Hit Shake")]
+    public float hitShakeDuration = 0.9f;
+    public Vector3 hitShakeRotation = new Vector3(30f, 40f, 28f);
+    public float hitShakePosition = 0.18f;
+    public float hitShakeFrequency = 35f;
+
     private bool isAiming = false;
     private bool droneScopeMode;
     private int zoomIndex = 0;
     private bool ownsScopeImage;
+    private bool hasAimCameraPose;
+    private float hitShakeRemaining;
+    private Vector3 cannonCameraAimPosition;
+    private Quaternion cannonCameraAimRotation;
 
     private void Start()
     {
@@ -154,11 +164,21 @@ public class TankScopeZoom : MonoBehaviour
         }
     }
 
+    private void LateUpdate()
+    {
+        UpdateHitShake();
+    }
+
     public void SetDroneScopeMode(bool active)
     {
         droneScopeMode = active;
         isAiming = false;
         zoomIndex = 0;
+        if (active)
+        {
+            hitShakeRemaining = 0f;
+            RestoreAimCameraPose();
+        }
 
         if (CannonCamera != null)
             CannonCamera.enabled = false;
@@ -179,6 +199,10 @@ public class TankScopeZoom : MonoBehaviour
     {
         isAiming = true;
         zoomIndex = 0;
+        cannonCameraAimPosition = CannonCamera.transform.localPosition;
+        cannonCameraAimRotation = CannonCamera.transform.localRotation;
+        hasAimCameraPose = true;
+        hitShakeRemaining = 0f;
 
         tankCamera.enabled = false;
         CannonCamera.enabled = true;
@@ -193,18 +217,87 @@ public class TankScopeZoom : MonoBehaviour
             scopeImage.SetActive(true);
     }
 
+    public void NotifyTankHit()
+    {
+        if (isAiming && CannonCamera != null &&
+            hitShakeDuration > 0f)
+        {
+            hitShakeRemaining = hitShakeDuration;
+        }
+    }
+
+    private void UpdateHitShake()
+    {
+        if (!isAiming || CannonCamera == null)
+            return;
+
+        if (hitShakeRemaining <= 0f)
+        {
+            CannonCamera.transform.localPosition = cannonCameraAimPosition;
+            CannonCamera.transform.localRotation = cannonCameraAimRotation;
+            return;
+        }
+
+        hitShakeRemaining = Mathf.Max(
+            0f,
+            hitShakeRemaining - Time.deltaTime
+        );
+        float intensity = hitShakeRemaining /
+                          Mathf.Max(0.01f, hitShakeDuration);
+        float noiseTime = Time.time * hitShakeFrequency;
+        Vector3 rotationNoise = new Vector3(
+            GetShakeNoise(noiseTime, 0f),
+            GetShakeNoise(noiseTime, 17f),
+            GetShakeNoise(noiseTime, 37f)
+        );
+        Vector3 positionNoise = new Vector3(
+            GetShakeNoise(noiseTime, 53f),
+            GetShakeNoise(noiseTime, 71f),
+            0f
+        );
+
+        CannonCamera.transform.localPosition =
+            cannonCameraAimPosition +
+            positionNoise * (hitShakePosition * intensity);
+        CannonCamera.transform.localRotation =
+            cannonCameraAimRotation *
+            Quaternion.Euler(Vector3.Scale(
+                rotationNoise,
+                hitShakeRotation * intensity
+            ));
+    }
+
+    private static float GetShakeNoise(float time, float offset)
+    {
+        return (Mathf.PerlinNoise(time, offset) - 0.5f) * 2f;
+    }
+
     public void ExitAiming()
     {
         isAiming = false;
         zoomIndex = 0;
+        hitShakeRemaining = 0f;
 
         if (tankCamera != null)
             tankCamera.enabled = true;
 
         if (CannonCamera != null)
+        {
+            RestoreAimCameraPose();
             CannonCamera.enabled = false;
+        }
 
         if (scopeImage != null)
             scopeImage.SetActive(false);
+    }
+
+    private void RestoreAimCameraPose()
+    {
+        if (!hasAimCameraPose || CannonCamera == null)
+            return;
+
+        CannonCamera.transform.localPosition = cannonCameraAimPosition;
+        CannonCamera.transform.localRotation = cannonCameraAimRotation;
+        hasAimCameraPose = false;
     }
 }

@@ -1,0 +1,13 @@
+{
+  "CSharp": "Compiled successfully against Unity 6000.5.7f1 reference libraries",
+  "scene_objects": 1148,
+  "scene_components_and_settings": 5584,
+  "native_mesh_assets": 38,
+  "asset_mesh_triangles": 134814,
+  "degenerate_triangles": 0,
+  "unresolved_scene_references": 0,
+  "heightmap_bytes": 2101250,
+  "heightmap_to_mesh_agreement_m": "< 0.002",
+  "bridge_approaches": "checked",
+  "UnityEditorImportAndPlayMode": "Not run: local editor license not activated"
+}

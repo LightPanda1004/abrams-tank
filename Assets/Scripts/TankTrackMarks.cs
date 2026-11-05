@@ -95,16 +95,17 @@ public class TankTrackMarks : MonoBehaviour
         Vector3 rightPosition = GetTrackPosition(1f);
 
         float spacing = Mathf.Max(0.05f, markSpacing);
+        float spacingSquared = spacing * spacing;
 
-        if (Vector3.Distance(leftPosition, lastLeftPosition)
-            >= spacing)
+        if ((leftPosition - lastLeftPosition).sqrMagnitude
+            >= spacingSquared)
         {
             if (PlaceMark(leftPosition))
                 lastLeftPosition = leftPosition;
         }
 
-        if (Vector3.Distance(rightPosition, lastRightPosition)
-            >= spacing)
+        if ((rightPosition - lastRightPosition).sqrMagnitude
+            >= spacingSquared)
         {
             if (PlaceMark(rightPosition))
                 lastRightPosition = rightPosition;
@@ -135,15 +136,9 @@ public class TankTrackMarks : MonoBehaviour
         if (hitCount == 0)
             return false;
 
-        System.Array.Sort(
-            raycastBuffer,
-            0,
-            hitCount,
-            Comparer<RaycastHit>.Create(
-                (a, b) => a.distance.CompareTo(b.distance)));
-
         RaycastHit groundHit = default;
         bool foundGround = false;
+        float closestDistance = float.PositiveInfinity;
 
         for (int i = 0; i < hitCount; i++)
         {
@@ -153,9 +148,12 @@ public class TankTrackMarks : MonoBehaviour
                 hit.transform.IsChildOf(tankRoot))
                 continue;
 
-            groundHit = hit;
-            foundGround = true;
-            break;
+            if (hit.distance < closestDistance)
+            {
+                groundHit = hit;
+                closestDistance = hit.distance;
+                foundGround = true;
+            }
         }
 
         if (!foundGround)
@@ -190,7 +188,8 @@ public class TankTrackMarks : MonoBehaviour
 
         Renderer markRenderer = mark.GetComponent<Renderer>();
 
-        markRenderer.material = trackMaterial;
+        // Per-mark opacity is supplied by the property block below.
+        markRenderer.sharedMaterial = trackMaterial;
 
         Color startColor = Color.black;
         startColor.a = initialOpacity;

@@ -4817,9 +4817,9 @@ GameObject:
   - component: {fileID: 4516787441170237632}
   - component: {fileID: 6001726670797689647}
   - component: {fileID: 1733684063811848403}
+  - component: {fileID: 900000000000001011}
   - component: {fileID: 4811905386627920455}
   - component: {fileID: 8933315346212642032}
-  - component: {fileID: 900000000000001011}
   - component: {fileID: 900000000000001012}
   - component: {fileID: 900000000000001013}
   m_Layer: 0
@@ -4877,7 +4877,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3883521883212452474}
   serializedVersion: 4
-  m_Mass: 1
+  m_Mass: 100
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -4896,6 +4896,27 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 2
+--- !u!114 &900000000000001011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3883521883212452474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  GlobalObjectIdHash: 1547409874
+  InScenePlacedSourceGlobalObjectIdHash: 0
+  AlwaysReplicateAsRoot: 0
+  SynchronizeTransform: 1
+  ActiveSceneSynchronization: 0
+  SceneMigrationSynchronization: 1
+  SpawnWithObservers: 1
+  DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!114 &4811905386627920455
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4934,22 +4955,6 @@ MonoBehaviour:
   hitExplosionPrefab: {fileID: 0}
   explosionLifetime: 5
   surfaceOffset: 0.05
---- !u!114 &900000000000001011
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3883521883212452474}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
-  GlobalObjectIdHash: 3262751932
-  AlwaysReplicateAsRoot: 0
-  DontDestroyWithOwner: 0
-  AutoObjectParentSync: 1
 --- !u!114 &900000000000001012
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4960,8 +4965,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
+  m_Name: 
+  m_EditorClassIdentifier: 
+  UseUnreliableDeltas: 0
   SyncPositionX: 1
   SyncPositionY: 1
   SyncPositionZ: 1
@@ -4974,9 +4980,12 @@ MonoBehaviour:
   PositionThreshold: 0.001
   RotAngleThreshold: 0.01
   ScaleThreshold: 0.01
+  UseQuaternionSynchronization: 0
+  UseQuaternionCompression: 0
+  UseHalfFloatPrecision: 0
   InLocalSpace: 0
   Interpolate: 1
-  FixedSendsPerSecond: 30
+  SlerpPosition: 0
 --- !u!114 &900000000000001013
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4987,8 +4996,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &9178690770838593389
 GameObject:
   m_ObjectHideFlags: 0

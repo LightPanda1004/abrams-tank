@@ -534,7 +534,7 @@ public class NetworkTankPlayer : NetworkBehaviour
         TankHealth targetHealth =
             targetNetworkObject.GetComponent<TankHealth>();
         if (targetHealth != null)
-            targetHealth.TakeDamage(100f);
+            targetHealth.TakeDamage(100f, transform);
     }
 
     [ClientRpc]
@@ -658,6 +658,8 @@ public class NetworkTankPlayer : NetworkBehaviour
         healthBarCanvas.renderMode = RenderMode.WorldSpace;
         healthBarCanvas.overrideSorting = true;
         healthBarCanvas.sortingOrder = 19;
+        healthBarCanvas.enabled =
+            GameDirector.Instance == null || !GameDirector.Instance.IsPaused;
 
         RectTransform canvasRect = canvasObject.GetComponent<RectTransform>();
         canvasRect.sizeDelta = new Vector2(220f, 28f);
@@ -700,6 +702,12 @@ public class NetworkTankPlayer : NetworkBehaviour
         healthBarFill = fillObject.GetComponent<Image>();
         healthBarFill.type = Image.Type.Simple;
         healthBarFill.raycastTarget = false;
+    }
+
+    public void SetHealthBarVisible(bool visible)
+    {
+        if (healthBarCanvas != null)
+            healthBarCanvas.enabled = visible;
     }
 
     private void UpdateHealthBar(float health)
@@ -772,6 +780,7 @@ public class NetworkTankPlayer : NetworkBehaviour
         if (nameTagText == null)
             return;
 
+        nameTagCanvas.enabled = !IsOwner;
         nameTagText.text = PlayerName;
         nameTagText.color = Team == TankTeam.Red
             ? new Color(1f, 0.18f, 0.15f, 1f)

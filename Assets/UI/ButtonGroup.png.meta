@@ -1,0 +1,775 @@
+fileFormatVersion: 2
+guid: a915712a90906422381a1ac9d9cb2a08
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 3
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 3
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: SinglePlaybtn_normal
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 910
+        width: 472
+        height: 89
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d613f916beee64bfda78faa8692c142c
+      internalID: -925918979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SinglePlaybtn_hover
+      rect:
+        serializedVersion: 2
+        x: 536
+        y: 909
+        width: 475
+        height: 90
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d44272134accf4e228eaa1d6775a7037
+      internalID: 1393542808
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: singleplaybtn_press
+      rect:
+        serializedVersion: 2
+        x: 1035
+        y: 912
+        width: 472
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cec1ba18ae8464434ab2ea9e7781206e
+      internalID: -1982399483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Multiplayerbtn_normal
+      rect:
+        serializedVersion: 2
+        x: 41
+        y: 803
+        width: 471
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a163fb0a1bebe4cd99747595f7bc8045
+      internalID: 950879097
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: MultiPlayerbtn_hover
+      rect:
+        serializedVersion: 2
+        x: 538
+        y: 803
+        width: 474
+        height: 86
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e5a4c9dbe76754920819056a7bcbb317
+      internalID: -1146860209
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Multiplayerbtn_press
+      rect:
+        serializedVersion: 2
+        x: 1035
+        y: 804
+        width: 471
+        height: 84
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8860fa0350eec4f24ad11e4867f379b1
+      internalID: -2129927489
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Settingsbtn_normal
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 703
+        width: 473
+        height: 85
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4ac6cf6d6f1844196843c91632049a97
+      internalID: 1674680751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Settingsbtn_hover
+      rect:
+        serializedVersion: 2
+        x: 536
+        y: 704
+        width: 475
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 310a4eb07f73146f9baf3e55534af3d3
+      internalID: 794412624
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Settingsbtn_press
+      rect:
+        serializedVersion: 2
+        x: 1035
+        y: 704
+        width: 472
+        height: 83
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 02ecccc4443fe47be9ab941c5c2bb879
+      internalID: 1998753863
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Exitbtn_normal
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 604
+        width: 472
+        height: 84
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9b01a2cb2591e458cb7a3c4f88c0f612
+      internalID: -784479997
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Exitbtn_hover
+      rect:
+        serializedVersion: 2
+        x: 536
+        y: 604
+        width: 474
+        height: 84
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b553187932fa249808fa81cf82f53ab3
+      internalID: -476891852
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Exitbtn_press
+      rect:
+        serializedVersion: 2
+        x: 1034
+        y: 605
+        width: 471
+        height: 83
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b5e2c4f5d58f94444a3e65bfb0f2d516
+      internalID: -263595795
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JoinGamebtn_normal
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 507
+        width: 472
+        height: 81
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf9f128fa30ce46cca94eaf0dea0dfad
+      internalID: 100352996
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JoinGamebtn_hover
+      rect:
+        serializedVersion: 2
+        x: 538
+        y: 507
+        width: 473
+        height: 80
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0e8233b0f13cd42c9a2fb2bcd1073095
+      internalID: 1726863759
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: JoinGamebtn_press
+      rect:
+        serializedVersion: 2
+        x: 1035
+        y: 508
+        width: 472
+        height: 80
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0c04b70402ef421c92c72a83b6a2fe0
+      internalID: -72554684
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CreateGamebtn_normal
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 413
+        width: 470
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0f1fe62906eed4d51a68a40d4b955be7
+      internalID: -1266835767
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CreateGamebtn_hover
+      rect:
+        serializedVersion: 2
+        x: 539
+        y: 413
+        width: 470
+        height: 80
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bc68d303868dc4db8ad7846897e4ba67
+      internalID: 1270050254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: CreateGamebtn_press
+      rect:
+        serializedVersion: 2
+        x: 1035
+        y: 414
+        width: 472
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 722628c982ebe48509caaf4f04623d93
+      internalID: -1836968389
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Refreshbtn_normal
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 321
+        width: 472
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fff508e0ff30640e1a631388222b956a
+      internalID: -390673605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Refreshbtn_hover
+      rect:
+        serializedVersion: 2
+        x: 536
+        y: 319
+        width: 476
+        height: 81
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 82f74952714e94270807fa91bc808ffc
+      internalID: -596662212
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Refreshbtn_press
+      rect:
+        serializedVersion: 2
+        x: 1035
+        y: 320
+        width: 472
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 63b9c6efa509f4810ad7755dafcb015e
+      internalID: 735101534
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Backbtn_normal
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 228
+        width: 473
+        height: 77
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 824991fa08a4e46b59d9cf72126cbe35
+      internalID: 1987574520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Backbtn_hover
+      rect:
+        serializedVersion: 2
+        x: 536
+        y: 228
+        width: 475
+        height: 75
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: becbeb483f7dd4d3a983ab703d0fa37b
+      internalID: -254918099
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Backbtn_press
+      rect:
+        serializedVersion: 2
+        x: 1037
+        y: 227
+        width: 470
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9f0c6b9d7f37740888692a5280af7fb4
+      internalID: -1759378766
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Applybtn_normal
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 135
+        width: 472
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 274b4db1be10048ac889a3596f28905a
+      internalID: -584390821
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Applybtn_hover
+      rect:
+        serializedVersion: 2
+        x: 535
+        y: 135
+        width: 476
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7b96578b53e9e4191aa811d37c9bfe84
+      internalID: 1260766940
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: Applybtn_press
+      rect:
+        serializedVersion: 2
+        x: 1034
+        y: 135
+        width: 472
+        height: 77
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d458e963744314df789efc53a2e1502f
+      internalID: -264415177
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlSettingsbtn_normal
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 39
+        width: 473
+        height: 82
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1bf3986770a4a42ea888043284c96082
+      internalID: 381557008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlSettingsbtn_hover
+      rect:
+        serializedVersion: 2
+        x: 539
+        y: 39
+        width: 471
+        height: 81
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e00b39ed9dc84412ab7206e06206512c
+      internalID: 3300195
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ControlSettings_press
+      rect:
+        serializedVersion: 2
+        x: 1034
+        y: 40
+        width: 472
+        height: 81
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 31210a459fee14bd8863328046d02fb3
+      internalID: 689835202
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: 70266b483b1f4468592f083211cbbb79
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    nameFileIdTable:
+      Applybtn_hover: 1260766940
+      Applybtn_normal: -584390821
+      Applybtn_press: -264415177
+      Backbtn_hover: -254918099
+      Backbtn_normal: 1987574520
+      Backbtn_press: -1759378766
+      ButtonGroup_1: 561047932
+      ControlSettings_press: 689835202
+      ControlSettingsbtn_hover: 3300195
+      ControlSettingsbtn_normal: 381557008
+      CreateGamebtn_hover: 1270050254
+      CreateGamebtn_normal: -1266835767
+      CreateGamebtn_press: -1836968389
+      Exitbtn_hover: -476891852
+      Exitbtn_normal: -784479997
+      Exitbtn_press: -263595795
+      JoinGamebtn_hover: 1726863759
+      JoinGamebtn_normal: 100352996
+      JoinGamebtn_press: -72554684
+      MultiPlayerbtn_hover: -1146860209
+      Multiplayerbtn_normal: 950879097
+      Multiplayerbtn_press: -2129927489
+      Refreshbtn_hover: -596662212
+      Refreshbtn_normal: -390673605
+      Refreshbtn_press: 735101534
+      Settingsbtn_hover: 794412624
+      Settingsbtn_normal: 1674680751
+      Settingsbtn_press: 1998753863
+      SinglePlaybtn_hover: 1393542808
+      SinglePlaybtn_normal: -925918979
+      singleplaybtn_press: -1982399483
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

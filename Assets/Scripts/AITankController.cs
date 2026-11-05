@@ -63,6 +63,8 @@ public class AITankController : MonoBehaviour
     private float currentTurnMultiplier = 1f;
     private float aimErrorUntil;
     private bool makingAimMistake;
+    private bool alertedByPlayer;
+    private float nextPlayerSearchTime;
 
     void Awake()
     {
@@ -80,13 +82,7 @@ public class AITankController : MonoBehaviour
 
     void Start()
     {
-        if (player == null)
-        {
-            GameObject obj = GameObject.FindGameObjectWithTag("Player");
-
-            if (obj != null)
-                player = obj.transform;
-        }
+        FindPlayer();
 
         nextFireTime = Time.time + Random.Range(0.5f, 2f);
         nextAimUpdateTime = Time.time;
@@ -95,6 +91,9 @@ public class AITankController : MonoBehaviour
 
     void Update()
     {
+        if (player == null && Time.time >= nextPlayerSearchTime)
+            FindPlayer();
+
         if (player == null) return;
 
         EnforceFixedTransform();
@@ -102,7 +101,7 @@ public class AITankController : MonoBehaviour
         float distance =
             Vector3.Distance(transform.position, player.position);
 
-        if (distance > detectionRange) return;
+        if (!alertedByPlayer && distance > detectionRange) return;
 
         UpdateImperfectAim();
         AimTurret();
@@ -132,7 +131,7 @@ public class AITankController : MonoBehaviour
 
         float distance = toPlayer.magnitude;
 
-        if (distance > detectionRange) return;
+        if (!alertedByPlayer && distance > detectionRange) return;
 
         bool frontBlocked = IsBlocked(0f);
         bool leftBlocked = IsBlocked(-35f);
@@ -217,6 +216,43 @@ public class AITankController : MonoBehaviour
     void LateUpdate()
     {
         EnforceFixedTransform();
+    }
+
+    public void NotifyAttackedBy(Transform attacker)
+    {
+        if (attacker == null)
+            return;
+
+        TankHealth attackerHealth =
+            attacker.GetComponentInParent<TankHealth>();
+        if (attackerHealth == null || !attackerHealth.isPlayerTank)
+            return;
+
+        player = attackerHealth.transform;
+        alertedByPlayer = true;
+    }
+
+    private void FindPlayer()
+    {
+        nextPlayerSearchTime = Time.time + 1f;
+
+        GameDirector gameDirector = GameDirector.Instance;
+        if (gameDirector != null && gameDirector.playerHealth != null &&
+            gameDirector.playerHealth.isPlayerTank)
+        {
+            player = gameDirector.playerHealth.transform;
+            return;
+        }
+
+        TankHealth[] tanks = FindObjectsOfType<TankHealth>();
+        foreach (TankHealth tank in tanks)
+        {
+            if (tank != null && tank.isPlayerTank)
+            {
+                player = tank.transform;
+                return;
+            }
+        }
     }
 
     void EnforceFixedTransform()
@@ -326,8 +362,7 @@ public class AITankController : MonoBehaviour
             ~0,
             QueryTriggerInteraction.Ignore))
         {
-            return hit.transform == player ||
-                   hit.transform.IsChildOf(player);
+            return hit.transform.root == player.root;
         }
 
         return false;

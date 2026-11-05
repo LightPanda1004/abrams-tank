@@ -9,7 +9,6 @@ public class AntiDroneLauncher : MonoBehaviour
 
     [Header("Target Detection")]
     public float detectionRange = 100f;
-    public float scanInterval = 0.25f;
 
     [Header("Firing")]
     public KeyCode fireKey = KeyCode.R;
@@ -20,7 +19,6 @@ public class AntiDroneLauncher : MonoBehaviour
     public GameObject launchEffectPrefab;
 
     private AIDroneController currentTarget;
-    private float scanTimer;
     private float reloadTimer;
 
     public bool IsReloading => reloadTimer > 0f;
@@ -34,13 +32,6 @@ public class AntiDroneLauncher : MonoBehaviour
     private void Update()
     {
         reloadTimer -= Time.deltaTime;
-        scanTimer -= Time.deltaTime;
-
-        if (scanTimer <= 0f)
-        {
-            scanTimer = scanInterval;
-            FindNearestDrone();
-        }
 
         if (Input.GetKeyDown(fireKey))
         {
@@ -121,12 +112,6 @@ public class AntiDroneLauncher : MonoBehaviour
         HomingMissile missile =
             missileObject.GetComponent<HomingMissile>();
 
-        if (missile != null)
-        {
-            missile.SetOwner(transform.root);
-            missile.SetTarget(currentTarget.transform);
-        }
-
         if (missile == null)
         {
             Debug.LogError(
@@ -137,6 +122,7 @@ public class AntiDroneLauncher : MonoBehaviour
             return;
         }
 
+        missile.SetOwner(transform.root);
         missile.SetTarget(currentTarget.transform);
 
         if (launchEffectPrefab != null)

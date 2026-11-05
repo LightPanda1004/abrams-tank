@@ -40,6 +40,8 @@ public class TankFire : MonoBehaviour
     private float nextFireTime;
     private bool isReloading;
     private bool canFire;
+    private bool ignoreMouseFireUntilRelease;
+    private bool wasPaused;
 
     public bool IsReloading => isReloading;
     public float RemainingReload => Mathf.Max(0f, nextFireTime - Time.time);
@@ -54,6 +56,8 @@ public class TankFire : MonoBehaviour
         nextFireTime = 0f;
         isReloading = false;
         canFire = true;
+        GameDirector gameDirector = GameDirector.Instance;
+        wasPaused = gameDirector != null && gameDirector.IsPaused;
 
         SetReloadUIVisible(false);
 
@@ -74,6 +78,22 @@ public class TankFire : MonoBehaviour
     {
         UpdateReloadState();
 
+        GameDirector gameDirector = GameDirector.Instance;
+        bool isPaused = gameDirector != null && gameDirector.IsPaused;
+        if (fireMethod == FireMethod.Mouse)
+        {
+            if (isPaused || wasPaused)
+                ignoreMouseFireUntilRelease = true;
+
+            if (!Input.GetMouseButton(mouseButton))
+                ignoreMouseFireUntilRelease = false;
+        }
+
+        wasPaused = isPaused;
+
+        if (isPaused)
+            return;
+
         if (!canFire || isReloading)
             return;
 
@@ -81,7 +101,7 @@ public class TankFire : MonoBehaviour
 
         if (fireMethod == FireMethod.Mouse)
         {
-            firePressed =
+            firePressed = !ignoreMouseFireUntilRelease &&
                 Input.GetMouseButtonDown(mouseButton);
         }
         else
@@ -212,5 +232,10 @@ public class TankFire : MonoBehaviour
         if (reloadText != null)
             reloadText.gameObject.SetActive(visible);
 
+    }
+
+    public void SetStatusBarVisible(bool visible)
+    {
+        SetReloadUIVisible(visible && isReloading);
     }
 }

@@ -301,7 +301,7 @@ public class TankShell : NetworkBehaviour
             (!isNetworkedShell || NetworkManager.Singleton.IsServer))
         {
             bool targetWasAlive = health.CurrentHealth > 0f;
-            health.TakeDamage(damage);
+            health.TakeDamage(damage, ownerRoot);
 
             if (isNetworkedShell && targetWasAlive &&
                 health.CurrentHealth <= 0f &&

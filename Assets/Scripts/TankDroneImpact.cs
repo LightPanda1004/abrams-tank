@@ -66,7 +66,7 @@ public class TankDroneImpact : MonoBehaviour
             }
             else
             {
-                hitTank.TakeDamage(100f);
+                hitTank.TakeDamage(100f, droneController.transform);
             }
         }
 
