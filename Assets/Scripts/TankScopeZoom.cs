@@ -33,6 +33,8 @@ public class TankScopeZoom : MonoBehaviour
     private Vector3 cannonCameraAimPosition;
     private Quaternion cannonCameraAimRotation;
 
+    public bool IsAiming => isAiming && !droneScopeMode;
+
     private void Start()
     {
         if (scopeImage != null && !scopeImage.scene.IsValid())

@@ -30,6 +30,7 @@ public class AntiDetectDronelauncher : MonoBehaviour
 
     private NetworkTankPlayer networkPlayer;
     private AntiDroneLauncher aiDroneLauncher;
+    private TankScopeZoom scopeControls;
     private Camera tankCamera;
     private NetworkTankPlayer currentTarget;
     private Canvas markerCanvas;
@@ -63,6 +64,7 @@ public class AntiDetectDronelauncher : MonoBehaviour
     {
         networkPlayer = GetComponent<NetworkTankPlayer>();
         aiDroneLauncher = GetComponentInChildren<AntiDroneLauncher>(true);
+        scopeControls = GetComponentInChildren<TankScopeZoom>(true);
         serverAmmunition = ammunition;
     }
 
@@ -71,20 +73,19 @@ public class AntiDetectDronelauncher : MonoBehaviour
         bool multiplayer = GameDirector.Instance != null &&
                            GameDirector.Instance.IsMultiplayerMode;
 
-        if (!multiplayer)
-        {
-            if (aiDroneLauncher != null && !aiDroneLauncher.enabled)
-                aiDroneLauncher.enabled = true;
-            SetMarkerVisible(false);
-            currentTarget = null;
-            return;
-        }
-
         if (aiDroneLauncher != null && aiDroneLauncher.enabled)
             aiDroneLauncher.enabled = false;
 
-        if (networkPlayer == null || !networkPlayer.IsSpawned ||
-            !networkPlayer.IsOwner || !isActiveAndEnabled)
+        if (multiplayer &&
+            (networkPlayer == null || !networkPlayer.IsSpawned ||
+             !networkPlayer.IsOwner || !isActiveAndEnabled))
+        {
+            currentTarget = null;
+            SetMarkerVisible(false);
+            return;
+        }
+
+        if (!isActiveAndEnabled)
         {
             currentTarget = null;
             SetMarkerVisible(false);
@@ -118,6 +119,13 @@ public class AntiDetectDronelauncher : MonoBehaviour
 
     private Camera FindTankCamera()
     {
+        if (scopeControls != null && scopeControls.IsAiming &&
+            scopeControls.CannonCamera != null &&
+            scopeControls.CannonCamera.isActiveAndEnabled)
+        {
+            return scopeControls.CannonCamera;
+        }
+
         TankCameraFollow cameraFollow =
             FindObjectOfType<TankCameraFollow>();
         if (cameraFollow != null)

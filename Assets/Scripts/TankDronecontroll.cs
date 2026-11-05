@@ -94,7 +94,11 @@ public class TankDronecontroll : MonoBehaviour
         isLocalOwner && isDeployed &&
         flightState != FlightState.Returning && !isDestroyed;
     public Camera DetectionDisplayCamera =>
-        isDroneView ? droneCamera : tankCamera;
+        isDroneView
+            ? droneCamera
+            : scopeControls != null && scopeControls.IsAiming
+                ? cannonCamera
+                : tankCamera;
     public bool CanHandleDroneImpact =>
         isLocalOwner && isDeployed && !isDestroyed;
 
@@ -140,8 +144,7 @@ public class TankDronecontroll : MonoBehaviour
     {
         networkPlayer = GetComponent<NetworkTankPlayer>();
         isLocalOwner = localOwner &&
-                       networkPlayer != null &&
-                       networkPlayer.IsOwner;
+                       (networkPlayer == null || networkPlayer.IsOwner);
 
         if (droneTransform == null || droneBody == null ||
             droneCamera == null || homeParent == null)
@@ -661,7 +664,7 @@ public class TankDronecontroll : MonoBehaviour
         if (tankFire != null)
             tankFire.enabled = tankEnabled;
         if (missileLauncher != null)
-            missileLauncher.enabled = tankEnabled && !isDeployed;
+            missileLauncher.enabled = tankEnabled;
         if (scopeControls != null)
         {
             if (!tankEnabled)

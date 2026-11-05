@@ -33,7 +33,6 @@ public class Tankdetectsystem : MonoBehaviour
     private Canvas markerCanvas;
     private RectTransform markerCanvasRect;
     private float nextScanTime;
-    private bool wasPilotingDrone;
 
     private void Awake()
     {
@@ -45,27 +44,17 @@ public class Tankdetectsystem : MonoBehaviour
     private void LateUpdate()
     {
         if (!IsLocalPlayer() || droneController == null ||
-            !droneController.IsActiveForDetection)
+            !droneController.IsDeployed)
         {
             ClearDetections();
-            wasPilotingDrone = false;
             return;
         }
-
-        bool isPilotingDrone = droneController.IsPilotingDrone;
-        if (isPilotingDrone && !wasPilotingDrone)
-            ClearDetections();
-        wasPilotingDrone = isPilotingDrone;
-
-        if (!droneController.IsDeployed && detectedTanks.Count == 0)
-            return;
 
         EnsureCanvas();
         if (markerCanvas == null)
             return;
 
-        if (isPilotingDrone &&
-            Time.time >= nextScanTime)
+        if (Time.time >= nextScanTime)
         {
             ScanForTanks();
             nextScanTime = Time.time + Mathf.Max(0.05f, scanInterval);

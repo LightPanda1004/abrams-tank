@@ -1096,7 +1096,14 @@ public partial class GameDirector
             playerMovement = scenePlayerMovement;
 
         if (playerHealth != null)
+        {
             playerHealth.gameObject.SetActive(true);
+
+            TankDronecontroll sceneDroneController =
+                playerHealth.GetComponent<TankDronecontroll>();
+            if (sceneDroneController != null)
+                sceneDroneController.Initialize(true);
+        }
 
         AIRandomSpawner[] tankSpawners =
             FindObjectsOfType<AIRandomSpawner>(true);
