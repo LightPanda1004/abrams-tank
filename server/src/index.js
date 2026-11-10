@@ -2,7 +2,6 @@
 
 const http = require("node:http");
 const crypto = require("node:crypto");
-const net = require("node:net");
 const { Pool } = require("pg");
 const {
     Contract,
@@ -98,26 +97,11 @@ CREATE TABLE IF NOT EXISTS rooms (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     owner_user_id BIGINT NOT NULL REFERENCES users(id),
-    server_id TEXT REFERENCES game_servers(id),
-    host TEXT,
-    port INTEGER CHECK (port BETWEEN 1 AND 65535),
+    server_id TEXT NOT NULL REFERENCES game_servers(id),
     status TEXT NOT NULL CHECK (status IN ('waiting', 'playing', 'complete')),
     max_players INTEGER NOT NULL CHECK (max_players BETWEEN 2 AND 32),
-    start_mode TEXT NOT NULL DEFAULT 'automatic'
-        CHECK (start_mode IN ('automatic', 'manual')),
-    server_ready BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-ALTER TABLE rooms
-    ADD COLUMN IF NOT EXISTS start_mode TEXT NOT NULL DEFAULT 'automatic';
-ALTER TABLE rooms
-    ADD COLUMN IF NOT EXISTS server_ready BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE rooms
-    ADD COLUMN IF NOT EXISTS host TEXT;
-ALTER TABLE rooms
-    ADD COLUMN IF NOT EXISTS port INTEGER CHECK (port BETWEEN 1 AND 65535);
-ALTER TABLE rooms
-    ALTER COLUMN server_id DROP NOT NULL;
 CREATE TABLE IF NOT EXISTS room_members (
     room_id BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     user_id BIGINT NOT NULL REFERENCES users(id),
@@ -149,43 +133,10 @@ CREATE TABLE IF NOT EXISTS player_match_results (
     victory BOOLEAN NOT NULL,
     PRIMARY KEY (room_id, user_id)
 );
-CREATE TABLE IF NOT EXISTS lan_game_servers (
-    id TEXT PRIMARY KEY,
-    host TEXT NOT NULL,
-    port INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
-    max_players INTEGER NOT NULL CHECK (max_players BETWEEN 2 AND 32),
-    current_room_id BIGINT,
-    heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE TABLE IF NOT EXISTS lan_rooms (
-    id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    owner_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    server_id TEXT REFERENCES lan_game_servers(id),
-    host TEXT NOT NULL,
-    port INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
-    max_players INTEGER NOT NULL CHECK (max_players BETWEEN 2 AND 32),
-    status TEXT NOT NULL CHECK (status IN ('playing', 'complete')),
-    heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-ALTER TABLE lan_rooms
-    ADD COLUMN IF NOT EXISTS server_id TEXT REFERENCES lan_game_servers(id);
-CREATE TABLE IF NOT EXISTS lan_room_members (
-    room_id BIGINT NOT NULL REFERENCES lan_rooms(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    team SMALLINT NOT NULL CHECK (team IN (1, 2)),
-    player_name TEXT NOT NULL,
-    heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (room_id, user_id)
-);
 CREATE INDEX IF NOT EXISTS rooms_status_created_idx
     ON rooms (status, created_at);
 CREATE INDEX IF NOT EXISTS join_tickets_room_idx
     ON join_tickets (room_id, expires_at);
-CREATE INDEX IF NOT EXISTS lan_rooms_active_idx
-    ON lan_rooms (status, heartbeat_at DESC);
-CREATE INDEX IF NOT EXISTS lan_room_members_active_idx
-    ON lan_room_members (room_id, heartbeat_at DESC);
 `;
 
 function respond(response, status, body) {
@@ -201,36 +152,11 @@ function clientAddress(request) {
     return request.socket.remoteAddress || "unknown";
 }
 
-function matchesOriginPattern(origin, pattern) {
-    if (!pattern.endsWith(":*")) {
-        return false;
-    }
-
-    try {
-        const url = new URL(origin);
-        const baseUrl = new URL(pattern.slice(0, -2));
-        return url.origin === origin &&
-            baseUrl.origin === pattern.slice(0, -2) &&
-            !baseUrl.port &&
-            url.protocol === baseUrl.protocol &&
-            url.hostname === baseUrl.hostname;
-    } catch {
-        return false;
-    }
-}
-
-function isAllowedOrigin(
-    origin,
-    configuredOrigins = allowedOrigins,
-    nodeEnv = process.env.NODE_ENV
-) {
-    if (configuredOrigins.has(origin) ||
-        [...configuredOrigins].some(pattern =>
-            matchesOriginPattern(origin, pattern)
-        )) {
+function isAllowedOrigin(origin) {
+    if (allowedOrigins.has(origin)) {
         return true;
     }
-    if (nodeEnv === "production") {
+    if (process.env.NODE_ENV === "production") {
         return false;
     }
 
@@ -357,16 +283,6 @@ function validPassword(value) {
 
 function validTeam(value) {
     return value === "blue" || value === "red";
-}
-
-function validLanHost(value) {
-    if (typeof value !== "string" || net.isIP(value) !== 4) {
-        return false;
-    }
-    const [first, second] = value.split(".").map(Number);
-    return first === 10 ||
-        (first === 172 && second >= 16 && second <= 31) ||
-        (first === 192 && second === 168);
 }
 
 function validPlayerAddress(value) {
@@ -830,427 +746,6 @@ async function route(request, response) {
         return;
     }
 
-    if (method === "POST" && path === "/api/lan/session") {
-        await readJson(request);
-        const username = "lan_" + crypto.randomBytes(10).toString("hex");
-        const passwordHash =
-            "lan_guest$" + crypto.randomBytes(32).toString("hex");
-        const result = await pool.query(
-            `INSERT INTO users (username, password_hash)
-             VALUES ($1, $2)
-             RETURNING id, username`,
-            [username, passwordHash]
-        );
-        const guest = result.rows[0];
-        respond(response, 201, {
-            token: accessToken(guest),
-            user: {
-                id: String(guest.id),
-                username: guest.username
-            }
-        });
-        return;
-    }
-
-    if (path.startsWith("/api/lan/server/")) {
-        if (!requireServer(request, response)) {
-            return;
-        }
-        const body = method === "POST" ? await readJson(request) : {};
-        if (method === "POST" && path === "/api/lan/server/register") {
-            const { id, host, port, maxPlayers } = body;
-            if (typeof id !== "string" ||
-                !/^[A-Za-z0-9_-]{1,64}$/.test(id) ||
-                !validLanHost(host) ||
-                !Number.isInteger(port) || port < 1 || port > 65535 ||
-                !Number.isInteger(maxPlayers) ||
-                maxPlayers < 2 || maxPlayers > 32) {
-                respond(response, 400, {
-                    error: "Invalid LAN dedicated server configuration."
-                });
-                return;
-            }
-
-            await withTransaction(async client => {
-                const current = await client.query(
-                    `SELECT current_room_id FROM lan_game_servers
-                     WHERE id = $1 FOR UPDATE`,
-                    [id]
-                );
-                if (current.rows[0]?.current_room_id) {
-                    const roomId = current.rows[0].current_room_id;
-                    await client.query(
-                        `UPDATE lan_rooms SET status = 'complete'
-                         WHERE id = $1 AND status = 'playing'`,
-                        [roomId]
-                    );
-                    await client.query(
-                        "DELETE FROM lan_room_members WHERE room_id = $1",
-                        [roomId]
-                    );
-                }
-                await client.query(
-                    `INSERT INTO lan_game_servers
-                        (id, host, port, max_players, current_room_id)
-                     VALUES ($1, $2, $3, $4, NULL)
-                     ON CONFLICT (id) DO UPDATE SET host = EXCLUDED.host,
-                        port = EXCLUDED.port,
-                        max_players = EXCLUDED.max_players,
-                        current_room_id = NULL, heartbeat_at = NOW()`,
-                    [id, host, port, maxPlayers]
-                );
-            });
-            respond(response, 200, { status: "ready" });
-            return;
-        }
-
-        if (method === "POST" && path === "/api/lan/server/heartbeat") {
-            const id = body.id;
-            if (typeof id !== "string") {
-                respond(response, 400, { error: "A LAN server id is required." });
-                return;
-            }
-
-            const active = await withTransaction(async client => {
-                const result = await client.query(
-                    `UPDATE lan_game_servers SET heartbeat_at = NOW()
-                     WHERE id = $1
-                     RETURNING current_room_id`,
-                    [id]
-                );
-                if (result.rowCount === 0) {
-                    return false;
-                }
-
-                const roomId = result.rows[0].current_room_id;
-                if (roomId) {
-                    const room = await client.query(
-                        `SELECT id FROM lan_rooms
-                         WHERE id = $1 AND status = 'playing'
-                           AND heartbeat_at > NOW() - INTERVAL '20 seconds'`,
-                        [roomId]
-                    );
-                    if (room.rowCount === 0) {
-                        await client.query(
-                            `UPDATE lan_rooms SET status = 'complete'
-                             WHERE id = $1 AND status = 'playing'`,
-                            [roomId]
-                        );
-                        await client.query(
-                            "DELETE FROM lan_room_members WHERE room_id = $1",
-                            [roomId]
-                        );
-                        await client.query(
-                            `UPDATE lan_game_servers
-                             SET current_room_id = NULL
-                             WHERE id = $1 AND current_room_id = $2`,
-                            [id, roomId]
-                        );
-                    }
-                }
-                return true;
-            });
-
-            if (!active) {
-                respond(response, 404, { error: "LAN server is not registered." });
-                return;
-            }
-            respond(response, 200, { status: "ok" });
-            return;
-        }
-
-        if (method === "POST" && path === "/api/lan/server/validate") {
-            const { id, roomId, accessToken } = body;
-            const user = typeof accessToken === "string" &&
-                accessToken.length <= 2048
-                ? verifyToken(accessToken, accessTokenSecret)
-                : null;
-            if (typeof id !== "string" ||
-                typeof roomId !== "string" ||
-                !/^\d+$/.test(roomId) ||
-                !user ||
-                typeof user.sub !== "string") {
-                respond(response, 400, {
-                    error: "A valid server id, room id, and LAN access token are required."
-                });
-                return;
-            }
-
-            const result = await pool.query(
-                `SELECT r.id::TEXT AS "roomId",
-                        m.user_id::TEXT AS "userId",
-                        m.team,
-                        m.player_name AS "playerName"
-                 FROM lan_rooms r
-                 JOIN lan_game_servers s
-                   ON s.id = r.server_id
-                  AND s.heartbeat_at > NOW() - INTERVAL '15 seconds'
-                 JOIN lan_room_members m
-                   ON m.room_id = r.id AND m.user_id = $3
-                  AND m.heartbeat_at > NOW() - INTERVAL '45 seconds'
-                 WHERE r.id = $1 AND r.server_id = $2
-                   AND r.status = 'playing'
-                   AND r.heartbeat_at > NOW() - INTERVAL '20 seconds'`,
-                [roomId, id, user.sub]
-            );
-            if (result.rowCount === 0) {
-                respond(response, 403, {
-                    error: "The player is not an active member of this LAN room."
-                });
-                return;
-            }
-            respond(response, 200, result.rows[0]);
-            return;
-        }
-
-        respond(response, 404, { error: "LAN server endpoint not found." });
-        return;
-    }
-
-    if (path.startsWith("/api/lan/rooms")) {
-        const user = authenticatedUser(request);
-        if (!user) {
-            respond(response, 401, { error: "Create a LAN guest session first." });
-            return;
-        }
-
-        if (method === "GET" && path === "/api/lan/rooms") {
-            const result = await pool.query(
-                `SELECT r.id::TEXT AS id, r.name, r.status, r.max_players,
-                        r.host, r.port,
-                        COUNT(m.user_id)::INTEGER AS player_count
-                 FROM lan_rooms r
-                 JOIN lan_game_servers s ON s.id = r.server_id
-                  AND s.heartbeat_at > NOW() - INTERVAL '15 seconds'
-                 LEFT JOIN lan_room_members m
-                   ON m.room_id = r.id
-                  AND m.heartbeat_at > NOW() - INTERVAL '45 seconds'
-                 WHERE r.status = 'playing'
-                   AND r.heartbeat_at > NOW() - INTERVAL '20 seconds'
-                 GROUP BY r.id
-                 ORDER BY r.heartbeat_at DESC
-                 LIMIT 100`
-            );
-            respond(response, 200, { rooms: result.rows });
-            return;
-        }
-
-        if (method === "POST" && path === "/api/lan/rooms") {
-            const body = await readJson(request);
-            const name = typeof body.name === "string"
-                ? body.name.replace(/[\u0000-\u001f\u007f]/g, "")
-                    .trim().slice(0, 32)
-                : "";
-            const playerName = sanitizePlayerName(body.playerName);
-            if (!name || !playerName || !validTeam(body.team)) {
-                respond(response, 400, {
-                    error: "A room name, player name, and blue or red team are required."
-                });
-                return;
-            }
-
-            try {
-                const room = await withTransaction(async client => {
-                    const available = await client.query(
-                        `SELECT id, host, port, max_players
-                         FROM lan_game_servers
-                         WHERE current_room_id IS NULL
-                           AND heartbeat_at > NOW() - INTERVAL '15 seconds'
-                         ORDER BY heartbeat_at DESC
-                         LIMIT 1 FOR UPDATE SKIP LOCKED`
-                    );
-                    const server = available.rows[0];
-                    if (!server) {
-                        const error = new Error(
-                            "The LAN dedicated game server is not ready or already has an active room."
-                        );
-                        error.status = 503;
-                        throw error;
-                    }
-
-                    const created = await client.query(
-                        `INSERT INTO lan_rooms
-                            (name, owner_user_id, server_id, host, port,
-                             max_players, status)
-                         VALUES ($1, $2, $3, $4, $5, $6, 'playing')
-                         RETURNING id::TEXT AS id, name, status, max_players,
-                                   host, port`,
-                        [name, user.sub, server.id, server.host, server.port,
-                            server.max_players]
-                    );
-                    const current = created.rows[0];
-                    await client.query(
-                        `UPDATE lan_game_servers SET current_room_id = $2
-                         WHERE id = $1`,
-                        [server.id, current.id]
-                    );
-                    await client.query(
-                        `INSERT INTO lan_room_members
-                            (room_id, user_id, team, player_name)
-                         VALUES ($1, $2, $3, $4)`,
-                        [current.id, user.sub, teamId(body.team), playerName]
-                    );
-                    return {
-                        ...current,
-                        player_count: 1,
-                        team: teamId(body.team),
-                        player_name: playerName
-                    };
-                });
-                respond(response, 201, { room });
-            } catch (error) {
-                if (error.status) {
-                    respond(response, error.status, { error: error.message });
-                    return;
-                }
-                throw error;
-            }
-            return;
-        }
-
-        const lanRoomAction =
-            /^\/api\/lan\/rooms\/(\d+)\/(join|heartbeat|leave)$/.exec(path);
-        if (method === "POST" && lanRoomAction) {
-            const roomId = lanRoomAction[1];
-            const action = lanRoomAction[2];
-            const body = await readJson(request);
-            if (action === "join") {
-                const playerName = sanitizePlayerName(body.playerName);
-                if (!validTeam(body.team) || !playerName) {
-                    respond(response, 400, {
-                        error: "A player name and blue or red team are required."
-                    });
-                    return;
-                }
-
-                try {
-                    const room = await withTransaction(async client => {
-                        const result = await client.query(
-                            `SELECT id::TEXT AS id, name, status, max_players,
-                                    host, port
-                             FROM lan_rooms
-                             WHERE id = $1 AND status = 'playing'
-                               AND heartbeat_at > NOW() - INTERVAL '20 seconds'
-                             FOR UPDATE`,
-                            [roomId]
-                        );
-                        const current = result.rows[0];
-                        if (!current) {
-                            const error = new Error(
-                                "That LAN host is no longer available."
-                            );
-                            error.status = 404;
-                            throw error;
-                        }
-                        const count = await client.query(
-                            `SELECT COUNT(*)::INTEGER AS count
-                             FROM lan_room_members
-                             WHERE room_id = $1
-                               AND heartbeat_at > NOW() - INTERVAL '45 seconds'`,
-                            [roomId]
-                        );
-                        const existing = await client.query(
-                            `SELECT heartbeat_at > NOW() - INTERVAL '45 seconds'
-                                    AS active
-                             FROM lan_room_members
-                             WHERE room_id = $1 AND user_id = $2`,
-                            [roomId, user.sub]
-                        );
-                        if (existing.rows[0]?.active) {
-                            const error = new Error(
-                                "This guest is already listed in that room."
-                            );
-                            error.status = 409;
-                            throw error;
-                        }
-                        if (count.rows[0].count >= current.max_players) {
-                            const error = new Error("That LAN room is full.");
-                            error.status = 409;
-                            throw error;
-                        }
-                        await client.query(
-                            `INSERT INTO lan_room_members
-                                (room_id, user_id, team, player_name)
-                             VALUES ($1, $2, $3, $4)
-                             ON CONFLICT (room_id, user_id)
-                             DO UPDATE SET team = EXCLUDED.team,
-                                 player_name = EXCLUDED.player_name,
-                                 heartbeat_at = NOW()`,
-                            [roomId, user.sub, teamId(body.team), playerName]
-                        );
-                        return {
-                            ...current,
-                            team: teamId(body.team),
-                            player_name: playerName,
-                            player_count: count.rows[0].count + 1
-                        };
-                    });
-                    respond(response, 200, { room });
-                } catch (error) {
-                    if (error.status) {
-                        respond(response, error.status, { error: error.message });
-                        return;
-                    }
-                    throw error;
-                }
-                return;
-            }
-
-            if (action === "heartbeat") {
-                const updated = await withTransaction(async client => {
-                    const roomResult = await client.query(
-                        `UPDATE lan_rooms SET heartbeat_at = NOW()
-                         WHERE id = $1 AND owner_user_id = $2
-                           AND status = 'playing'
-                         RETURNING id`,
-                        [roomId, user.sub]
-                    );
-                    const memberResult = await client.query(
-                        `UPDATE lan_room_members SET heartbeat_at = NOW()
-                         WHERE room_id = $1 AND user_id = $2
-                         RETURNING room_id`,
-                        [roomId, user.sub]
-                    );
-                    return roomResult.rowCount + memberResult.rowCount;
-                });
-                if (updated === 0) {
-                    respond(response, 404, {
-                        error: "The LAN room membership is no longer active."
-                    });
-                    return;
-                }
-                respond(response, 200, { status: "ok" });
-                return;
-            }
-
-            await withTransaction(async client => {
-                await client.query(
-                    `UPDATE lan_rooms SET status = 'complete'
-                     WHERE id = $1 AND owner_user_id = $2`,
-                    [roomId, user.sub]
-                );
-                await client.query(
-                    `UPDATE lan_game_servers SET current_room_id = NULL
-                     WHERE current_room_id = $1
-                       AND EXISTS (
-                           SELECT 1 FROM lan_rooms
-                           WHERE id = $1 AND owner_user_id = $2
-                       )`,
-                    [roomId, user.sub]
-                );
-                await client.query(
-                    "DELETE FROM lan_room_members WHERE room_id = $1 AND user_id = $2",
-                    [roomId, user.sub]
-                );
-            });
-            respond(response, 200, { status: "left" });
-            return;
-        }
-
-        respond(response, 404, { error: "LAN room endpoint not found." });
-        return;
-    }
-
     if (path.startsWith("/api/rooms")) {
         const user = authenticatedUser(request);
         if (!user) {
@@ -1261,17 +756,15 @@ async function route(request, response) {
         if (method === "GET" && path === "/api/rooms") {
             const result = await pool.query(
                 `SELECT r.id::TEXT AS id, r.name, r.status, r.max_players,
-                        r.host, r.port,
-                        r.server_ready,
-                        COUNT(rm.user_id)::INTEGER AS player_count,
-                        COUNT(rm.user_id) FILTER (
-                            WHERE rm.user_id <> r.owner_user_id
-                        )::INTEGER AS other_player_count
+                        gs.host, gs.port,
+                        COUNT(rm.user_id)::INTEGER AS player_count
                  FROM rooms r
+                 JOIN game_servers gs ON gs.id = r.server_id
                  LEFT JOIN room_members rm ON rm.room_id = r.id
                     AND rm.joined_at > NOW() - INTERVAL '45 seconds'
                  WHERE r.status IN ('waiting', 'playing')
-                 GROUP BY r.id, r.host, r.port, r.server_ready
+                   AND gs.heartbeat_at > NOW() - INTERVAL '20 seconds'
+                 GROUP BY r.id, gs.host, gs.port
                  ORDER BY r.created_at DESC
                  LIMIT 100`
             );
@@ -1294,27 +787,32 @@ async function route(request, response) {
             }
             try {
                 const room = await withTransaction(async client => {
-                    const host = typeof body.host === "string" && body.host
-                        ? body.host
-                        : (request.socket.remoteAddress || "").replace(/^::ffff:/, "");
-                    const port = typeof body.port === "number" && body.port > 0
-                        ? body.port
-                        : 7777;
+                    const serverResult = await client.query(
+                        `SELECT id, host, port, max_players
+                         FROM game_servers
+                         WHERE status = 'ready'
+                           AND heartbeat_at > NOW() - INTERVAL '20 seconds'
+                         ORDER BY heartbeat_at DESC
+                         LIMIT 1
+                         FOR UPDATE SKIP LOCKED`
+                    );
+                    const server = serverResult.rows[0];
+                    if (!server) {
+                        const error = new Error("No dedicated game server is available.");
+                        error.status = 503;
+                        throw error;
+                    }
                     const created = await client.query(
-                        `INSERT INTO rooms
-                            (name, owner_user_id, server_id, host, port, status, max_players, start_mode)
-                         VALUES ($1, $2, NULL, $3, $4, 'waiting', $5, 'manual')
-                         RETURNING id::TEXT AS id, name, max_players, status,
-                                   server_ready, host, port`,
-                        [
-                            name,
-                            user.sub,
-                            host,
-                            port,
-                            Math.min(ROOM_CAPACITY, 4)
-                        ]
+                        `INSERT INTO rooms (name, owner_user_id, server_id, status, max_players)
+                         VALUES ($1, $2, $3, 'waiting', $4)
+                         RETURNING id::TEXT AS id, name, max_players, status`,
+                        [name, user.sub, server.id, Math.min(ROOM_CAPACITY, server.max_players)]
                     );
                     const createdRoom = created.rows[0];
+                    await client.query(
+                        "UPDATE game_servers SET status = 'busy', current_room_id = $1 WHERE id = $2",
+                        [createdRoom.id, server.id]
+                    );
                     await client.query(
                         "INSERT INTO room_members (room_id, user_id, team, player_name) VALUES ($1, $2, $3, $4)",
                         [createdRoom.id, user.sub, teamId(body.team), playerName]
@@ -1328,6 +826,8 @@ async function route(request, response) {
                     );
                     return {
                         ...createdRoom,
+                        host: server.host,
+                        port: server.port,
                         ticket
                     };
                 });
@@ -1354,10 +854,12 @@ async function route(request, response) {
                 const room = await withTransaction(async client => {
                     const result = await client.query(
                         `SELECT r.id::TEXT AS id, r.name, r.status,
-                                r.max_players, r.server_ready, r.host, r.port
+                                r.max_players, gs.host, gs.port
                          FROM rooms r
+                         JOIN game_servers gs ON gs.id = r.server_id
                          WHERE r.id = $1
                            AND r.status IN ('waiting', 'playing')
+                           AND gs.heartbeat_at > NOW() - INTERVAL '20 seconds'
                          FOR UPDATE OF r`,
                         [joinMatch[1]]
                     );
@@ -1414,70 +916,6 @@ async function route(request, response) {
             }
             return;
         }
-
-        const roomActionMatch =
-            /^\/api\/rooms\/(\d+)\/(heartbeat|ticket)$/.exec(path);
-        if (method === "POST" && roomActionMatch) {
-            const roomId = roomActionMatch[1];
-            const action = roomActionMatch[2];
-            try {
-                if (action === "heartbeat") {
-                    const result = await pool.query(
-                        `UPDATE room_members rm
-                         SET joined_at = NOW()
-                         FROM rooms r
-                         WHERE rm.room_id = r.id AND r.id = $1
-                           AND rm.user_id = $2
-                           AND r.status IN ('waiting', 'playing')
-                         RETURNING rm.room_id`,
-                        [roomId, user.sub]
-                    );
-                    if (result.rowCount === 0) {
-                        respond(response, 404, {
-                            error: "You are no longer in that active room."
-                        });
-                        return;
-                    }
-                    respond(response, 200, { status: "ok" });
-                    return;
-                }
-
-                const room = await withTransaction(async client => {
-                    const result = await client.query(
-                        `SELECT r.id::TEXT AS id, r.status,
-                                r.host, r.port, rm.team, rm.player_name
-                         FROM rooms r
-                         JOIN room_members rm
-                           ON rm.room_id = r.id AND rm.user_id = $2
-                         WHERE r.id = $1 AND r.status = 'playing'
-                         FOR UPDATE OF r`,
-                        [roomId, user.sub]
-                    );
-                    const current = result.rows[0];
-                    if (!current) {
-                        const error = new Error("You are not a member of that LAN room.");
-                        error.status = 404;
-                        throw error;
-                    }
-                    const ticket = await issueTicket(
-                        client,
-                        current.id,
-                        user.sub,
-                        current.team,
-                        current.player_name
-                    );
-                    return { ...current, ticket };
-                });
-                respond(response, 200, { room });
-            } catch (error) {
-                if (error.status) {
-                    respond(response, error.status, { error: error.message });
-                    return;
-                }
-                throw error;
-            }
-            return;
-        }
     }
 
     if (path.startsWith("/api/server/")) {
@@ -1502,8 +940,7 @@ async function route(request, response) {
                     [id]
                 );
                 await client.query(
-                    `UPDATE rooms SET status = 'complete', server_ready = FALSE
-                     WHERE server_id = $1 AND status IN ('waiting', 'playing')`,
+                    "UPDATE rooms SET status = 'complete' WHERE server_id = $1 AND status IN ('waiting', 'playing')",
                     [id]
                 );
                 await client.query(
@@ -1691,7 +1128,7 @@ async function route(request, response) {
                 return;
             }
             const result = await pool.query(
-                `SELECT r.id::TEXT AS id, r.name, r.status, r.start_mode
+                `SELECT r.id::TEXT AS id, r.name, r.status
                  FROM rooms r JOIN game_servers gs ON gs.id = r.server_id
                  WHERE gs.id = $1 AND gs.current_room_id = r.id
                    AND r.status IN ('waiting', 'playing')
@@ -1750,23 +1187,16 @@ async function route(request, response) {
         if (method === "POST" && roomStateMatch) {
             const roomId = roomStateMatch[1];
             const action = roomStateMatch[2];
-            let roomStatus = "";
             await withTransaction(async client => {
                 if (action === "start") {
-                    const result = await client.query(
-                        `UPDATE rooms
-                         SET server_ready = TRUE,
-                             status = 'playing'
-                         WHERE id = $1 AND server_id = $2 AND status = 'waiting'
-                         RETURNING status`,
+                    await client.query(
+                        `UPDATE rooms SET status = 'playing'
+                         WHERE id = $1 AND server_id = $2 AND status = 'waiting'`,
                         [roomId, body.serverId]
                     );
-                    roomStatus = result.rows[0]
-                        ? result.rows[0].status
-                        : "complete";
                 } else {
                     await client.query(
-                        `UPDATE rooms SET status = 'complete', server_ready = FALSE
+                        `UPDATE rooms SET status = 'complete'
                          WHERE id = $1 AND server_id = $2
                            AND status IN ('waiting', 'playing')`,
                         [roomId, body.serverId]
@@ -1785,7 +1215,7 @@ async function route(request, response) {
                 }
             });
             respond(response, 200, {
-                status: action === "start" ? roomStatus
+                status: action === "start" ? "playing"
                     : action === "end" ? "complete" : "ready"
             });
             return;

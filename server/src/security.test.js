@@ -74,26 +74,6 @@ test("CORS permits local development origins and rejects them in production", ()
         assert.equal(isAllowedOrigin("https://malicious.example"), false);
         process.env.NODE_ENV = "production";
         assert.equal(isAllowedOrigin("http://localhost:51956"), false);
-        const lanOrigins = new Set([
-            "http://localhost:*",
-            "http://127.0.0.1:*"
-        ]);
-        assert.equal(
-            isAllowedOrigin("http://localhost:49590", lanOrigins),
-            true
-        );
-        assert.equal(
-            isAllowedOrigin("http://127.0.0.1:5173", lanOrigins),
-            true
-        );
-        assert.equal(
-            isAllowedOrigin("http://192.168.1.20:49590", lanOrigins),
-            false
-        );
-        assert.equal(
-            isAllowedOrigin("https://localhost:49590", lanOrigins),
-            false
-        );
     } finally {
         if (previousNodeEnv === undefined) {
             delete process.env.NODE_ENV;

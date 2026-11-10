@@ -34,15 +34,7 @@ Turret mode is switched in **Settings → Control Settings** on the in-game menu
 ## Project layout
 
 ```
-Assets/Scripts/
-  AI/               AI tank and drone controllers
-  Core/             GameDirector and its feature partials
-  Drones/           Drone controls and camera
-  Effects/          Tracks, exhaust, and visual effects
-  Networking/       LAN and online multiplayer networking
-  Tank/             Tank movement, health, camera, and controls
-  UI/               HUD and minimap markers
-  Weapons/          Launchers, shells, and missiles
+Assets/Scripts/     Gameplay scripts (player, AI, weapons, UI)
 Assets/prefabs/     Player tank, AI tank, drone, shells, missiles
 Assets/Tiny Teacup Studio/.../Demo/DemoScene.unity   Playable scene
 Packages/           Unity package manifest
@@ -54,15 +46,6 @@ coordination are provided by the Node.js/PostgreSQL service in [server](./server
 Internet matches use separately deployed Unity dedicated-server builds and
 the online service and Unity Transport. The online menu also provides player
 profiles and an Ethereum Sepolia TCOIN/equipment panel.
-
-LAN matches use anonymous guest sessions, the room directory, and a Unity
-Linux dedicated game server. Both WebGL and desktop clients can create or join
-rooms; the creator's tank spawns immediately and can play while others join.
-Build the server from **Abrams → Build → Linux Dedicated Game Server**, then
-run `./server/start-lan.sh <private LAN IPv4>` to start the LAN services,
-including the dedicated game server. **Online Service Url** and the Online
-Battle dedicated-server flow remain separate. See
-[the LAN setup](./server/README.md#lan-lobby).
 
 ## Online blockchain setup
 
@@ -104,12 +87,11 @@ Desktop builds continue to use Reown AppKit and WalletConnect.
 
 | Area | Main files |
 | --- | --- |
-| Game flow, pause, win/lose | `Assets/Scripts/Core/GameDirector.cs` |
-| Player drive / aim / fire | `Assets/Scripts/Tank/TankMovement.cs`, `Assets/Scripts/Tank/TankTurretMouse.cs` (`TankTurretMove`), `Assets/Scripts/Tank/TankFire.cs` |
-| Damage | `Assets/Scripts/Tank/TankHealth.cs`, `Assets/Scripts/Weapons/TankShell.cs` |
-| AI tanks | `Assets/Scripts/AI/AITankRandomspawner.cs` (`AIRandomSpawner`), `Assets/Scripts/AI/AITankController.cs` |
-| Drones | `Assets/Scripts/AI/AIDroneSpawner.cs`, `Assets/Scripts/AI/AIDroneController.cs`, `Assets/Scripts/Drones/TankDronecontroll.cs`, `Assets/Scripts/Weapons/AntiDroneLauncher.cs`, `Assets/Scripts/Weapons/MissileScript.cs` (`HomingMissile`) |
-| LAN and online networking | `Assets/Scripts/Networking/` |
+| Game flow, pause, win/lose | `Assets/Scripts/GameDirector.cs` |
+| Player drive / aim / fire | `TankMovement.cs`, `TankTurretMouse.cs` (`TankTurretMove`), `TankFire.cs` |
+| Damage | `TankHealth.cs`, `TankShell.cs` |
+| AI tanks | `AITankRandomspawner.cs` (`AIRandomSpawner`), `AITankController.cs` |
+| Drones | `AIDroneSpawner.cs`, `AIDroneController.cs`, `AntiDroneLauncher.cs`, `MissileScript.cs` (`HomingMissile`) |
 | Online accounts and rooms | [server/src/index.js](./server/src/index.js), [server/src/security.js](./server/src/security.js) |
 
 Third-party art and VFX live under `Assets/Samples/` and `Assets/Tiny Teacup Studio/`.

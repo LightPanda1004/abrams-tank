@@ -58,88 +58,8 @@ Each running Unity dedicated server registers its endpoint with
 assigns an available server to a newly created room and returns its endpoint
 and one-time join ticket to the player. The server validates each
 ticket against `/api/server/tickets/validate` before approving a Netcode
-connection. Online gameplay uses Unity Transport 2.x WebSockets so WebGL
-players can connect to dedicated servers. Keep `SERVER_API_TOKEN` private and
-configure it only on trusted dedicated-server processes.
-
-### LAN lobby
-
-LAN games use anonymous guest sessions, a separate Node/PostgreSQL-based room
-directory, and a Unity Linux dedicated game server. WebGL and desktop clients
-can both create and join rooms. The room creator connects as a normal player
-after the room is allocated, so its tank appears immediately while other
-players join. The **LAN GAME** menu does not ask players to register or sign
-in; **ONLINE BATTLE** remains a separate account and dedicated-server flow.
-
-#### Start the LAN stack
-
-Requirements: Docker Desktop (or Docker Engine with Compose) and Node.js 20+
-for the startup script, plus Unity 2022.3.62f1 with Linux Dedicated Server
-Build Support.
-
-1. In Unity, open the playable demo scene and build
-   **Abrams → Build → Linux Dedicated Game Server**. The build is saved to
-   `server/game-server/`. Rebuild it after changing the game code or player
-   prefab.
-2. Find the LAN computer's private IPv4 address (for example `192.168.1.20`).
-   From the project root run:
-
-   ```sh
-   ./server/start-lan.sh 192.168.1.20
-   ```
-
-   On macOS, the script starts Docker Desktop if it is installed but stopped;
-   on other platforms, start Docker first. It creates a private
-   `server/.env.compose` with random secrets, starts PostgreSQL, the lobby API,
-   WebGL hosting, and the dedicated game server, then waits for both services
-   to become ready. The LAN URL is `http://192.168.1.20:8080`; the API listens
-   on port 3001 on the LAN host (mapped to port 3000 inside Docker). PostgreSQL
-   is not exposed outside Docker.
-3. If needed, rebuild the WebGL player in Unity using
-   **Abrams → Build → WebGL LAN Player**. The build is saved to
-   `tankbattle(WebGL)/` and uses plain HTTP for the private-LAN lobby API.
-   Install WebGL Build Support from Unity Hub if Unity reports that the module
-   is missing.
-4. Allow inbound TCP ports 8080, 3001, and 7777 through the LAN computer's
-   firewall.
-
-Other LAN players open `http://192.168.1.20:8080` (or launch a desktop build),
-choose **LAN GAME**, enter a display name, choose a team, then create or join
-the published room. The WebGL page automatically addresses the lobby at the
-same host on port 3001. For desktop clients, set **LAN Lobby Service Url** on
-the scene's `GameDirector` to `http://192.168.1.20:3001` before building or
-running the game. No account or internet access is required for LAN play.
-Clients connect directly to the dedicated game server over WebSockets; the
-Node/PostgreSQL service handles room discovery, membership, and connection
-approval.
-
-Check services and logs with:
-
-```sh
-docker compose -f server/docker-compose.yml \
-  --env-file server/.env.compose ps
-docker compose -f server/docker-compose.yml \
-  --env-file server/.env.compose logs -f api
-docker compose -f server/docker-compose.yml \
-  --env-file server/.env.compose logs -f game-server
-```
-
-After rebuilding the Unity dedicated server, restart just that service with:
-
-```sh
-./server/start-game-server.sh
-```
-
-Stop the containers without deleting saved room/account data:
-
-```sh
-docker compose -f server/docker-compose.yml \
-  --env-file server/.env.compose down
-```
-
-The WebGL page, lobby API, and game server must be reachable from every player.
-The HTTP setup is for a trusted private LAN; do not expose these ports to the
-public internet.
+connection. Keep `SERVER_API_TOKEN` private and configure it only on trusted
+dedicated-server processes.
 
 ### Blockchain battle rewards
 
@@ -189,24 +109,12 @@ ABRAMS_ONLINE_SERVER_PORT=7777
 SERVER_API_TOKEN=<same private value configured on the Node service>
 ```
 
-For local development with an HTTP API and an HTTP-hosted WebGL build, the
-game transport uses unencrypted WebSockets. For production, serve the game
-over HTTPS and set `ABRAMS_ONLINE_API_URL` and the Unity `GameDirector`
-**Online Service Url** to HTTPS. Install a valid PEM certificate and
-unencrypted PEM private key on each dedicated server, with a hostname that
-matches `ABRAMS_ONLINE_SERVER_HOST`, and set:
-
-```text
-ABRAMS_ONLINE_SERVER_CERTIFICATE_FILE=/run/secrets/game-server.crt
-ABRAMS_ONLINE_SERVER_PRIVATE_KEY_FILE=/run/secrets/game-server.key
-```
-
-With an HTTPS API URL, the dedicated server automatically enables TLS for its
-WebSocket listener; clients validate the certificate against the registered
-server hostname. Expose the configured game port over TCP for WebSocket
-traffic. Online Battle uses WebSockets. The Online Battle menu supports registration, login, room
-creation/listing, and joining; room creation reports an error while no
-dedicated server is registered and healthy.
+Allow inbound UDP traffic on each game server's configured port. Set the
+Unity `GameDirector` **Online Service Url** field to the Node service's public
+HTTPS origin (for example, `https://api.example.com`) in the client build.
+The game's online button supports registration, login, room creation/listing,
+and joining; room creation reports an error while no dedicated server is
+registered and healthy.
 
 Do not expose this service or send passwords over plain HTTP on the public
 internet. Terminate HTTPS at a trusted reverse proxy and restrict the service

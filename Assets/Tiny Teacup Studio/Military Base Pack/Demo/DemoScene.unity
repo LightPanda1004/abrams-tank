@@ -272,8 +272,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name: ""
+  m_EditorClassIdentifier: ""
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -316,8 +316,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name: ""
+  m_EditorClassIdentifier: ""
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
@@ -664,8 +664,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4e29b1a8efbd4b44bb3f3716e73f07ff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name: ""
+  m_EditorClassIdentifier: ""
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -708,8 +708,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name: ""
+  m_EditorClassIdentifier: ""
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
@@ -20742,7 +20742,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 4929558766976544112}
+    m_TransformParent: {fileID: 304469100584092220}
     m_Modifications:
     - target: {fileID: 1263104843689366354, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
       propertyPath: m_LocalRotation.w
@@ -123624,7 +123624,6 @@ MonoBehaviour:
   menuBackgroundTexture: {fileID: 2800000, guid: d6f09e7457c54b15b531e7e6384403e9, type: 3}
   finishMenuDelay: 2
   onlineServiceUrl: http://localhost:3000
-  lanLobbyServiceUrl: http://localhost:3001
   reownAppKitPrefab: {fileID: 6019781919744940759, guid: fc9e7b2d2aa114b7684aede0fa95d202, type: 3}
   reownProjectId: ca5c7f02f2b05d31ebfa25a0a397d00e
   tankCoinContractAddress: 0x4fc5efd55b1c845e2e88b8431C0d018a6E5331FC
@@ -131070,6 +131069,7 @@ Transform:
   - {fileID: 3381821543771334550}
   - {fileID: 7790063700649519180}
   - {fileID: 679768256}
+  - {fileID: 1954340030}
   - {fileID: 930000000000000003}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -131214,9 +131214,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01efa4ff46c1249c0bd9d578221bd8cb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  droneTransform: {fileID: 1954340030}
+  m_Name: ""  m_EditorClassIdentifier: ""  droneTransform: {fileID: 1954340030}
   droneCamera: {fileID: 930000000000000004}
   minimapDroneMarkerPrefab: {fileID: 6631895654841420885, guid: d51038c1f54024af9931c2bb87045765, type: 3}
   deploymentHeight: 5
@@ -131335,9 +131333,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b7b8f394858af4af5a2d8cd4908bc7b0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  target: {fileID: 1954340030}
+  m_Name: ""  m_EditorClassIdentifier: ""  target: {fileID: 1954340030}
   offsetFromTarget: {x: 0, y: 2, z: -6}
   followSpeed: 5
   rotationSpeed: 5
@@ -131351,9 +131347,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ca09d6c64e4a4b30a8bd9172e0314f72, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  explosionPrefab: {fileID: 100006, guid: 4575df893a6e3f64a8283dee38413a34, type: 3}
+  m_Name: ""  m_EditorClassIdentifier: ""  explosionPrefab: {fileID: 100006, guid: 4575df893a6e3f64a8283dee38413a34, type: 3}
   firePrefab: {fileID: 100000, guid: dc0674a8a869b5043ab6f4155bdd5b02, type: 3}
   explosionEffectDuration: 5
   explosionRadius: 6
@@ -131371,9 +131365,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e25c9d1c5e0c4eecb8422fbb81a64102, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  detectionRange: 200
+  m_Name: ""  m_EditorClassIdentifier: ""  detectionRange: 200
   scanInterval: 0.2
   requireLineOfSight: 1
   blueDetectMarker: {fileID: 21300000, guid: ec0338e5ab8c04d85895e72fb1200213, type: 3}
@@ -132354,7 +132346,6 @@ Transform:
   - {fileID: 2057734007659865215}
   - {fileID: 5474561983051396669}
   - {fileID: 2348721788081816103}
-  - {fileID: 1954340030}
   m_Father: {fileID: 304469100584092220}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &4978180595280714782
