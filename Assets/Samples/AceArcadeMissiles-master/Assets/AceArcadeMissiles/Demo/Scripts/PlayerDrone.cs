@@ -19,7 +19,7 @@ public class PlayerDrone : MonoBehaviour
     public Image selectXMA;
     public Image selectRCL;
 
-    new Rigidbody rigidbody;
+    Rigidbody droneBody;
 
     const float FORCEMULT = 100.0f;
 
@@ -30,7 +30,7 @@ public class PlayerDrone : MonoBehaviour
 
     void Awake()
     {
-        rigidbody = GetComponent<Rigidbody>();
+        droneBody = GetComponent<Rigidbody>();
         
         launchers = new Queue<AALauncher>[3];
         for (int i=0; i<3; i++)
@@ -92,7 +92,7 @@ public class PlayerDrone : MonoBehaviour
         }
 
         UpdateAmmoCounters();
-        spd.text = string.Format("{0:000}", rigidbody.velocity.magnitude);
+        spd.text = string.Format("{0:000}", droneBody.velocity.magnitude);
     }
 
     void FixedUpdate()
@@ -100,9 +100,9 @@ public class PlayerDrone : MonoBehaviour
         float inPitch = Input.GetAxis("Vertical");
         float inYaw = Input.GetAxis("Horizontal");
 
-        rigidbody.AddRelativeForce(0.0f, 0.0f, thrust * FORCEMULT * Time.deltaTime);
+        droneBody.AddRelativeForce(0.0f, 0.0f, thrust * FORCEMULT * Time.deltaTime);
 
-        rigidbody.AddRelativeTorque(inPitch * pitch * FORCEMULT * Time.deltaTime,
+        droneBody.AddRelativeTorque(inPitch * pitch * FORCEMULT * Time.deltaTime,
                                     inYaw * yaw * FORCEMULT * Time.deltaTime,
                                     -inYaw * yaw * FORCEMULT * 0.5f * Time.deltaTime);
     }
@@ -113,7 +113,7 @@ public class PlayerDrone : MonoBehaviour
         if (launchers[selectedLauncherGroup].Count > 0)
         {
             AALauncher temp = launchers[selectedLauncherGroup].Dequeue();
-            temp.Launch(target, rigidbody.velocity);
+            temp.Launch(target, droneBody.velocity);
             launchers[selectedLauncherGroup].Enqueue(temp);
         }
     }

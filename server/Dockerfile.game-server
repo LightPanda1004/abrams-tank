@@ -1,0 +1,18 @@
+FROM ubuntu:22.04
+
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates \
+        libasound2 \
+        libatomic1 \
+        libcurl4 \
+        libgcc-s1 \
+        libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /game
+COPY game-server/ /game/
+RUN chmod +x /game/AbramsServer.x86_64
+
+EXPOSE 7777/tcp
+ENTRYPOINT ["/game/AbramsServer.x86_64", "-batchmode", "-nographics"]

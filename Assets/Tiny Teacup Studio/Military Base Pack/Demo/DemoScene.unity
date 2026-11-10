@@ -20742,7 +20742,7 @@ PrefabInstance:
   serializedVersion: 2
   m_Modification:
     serializedVersion: 3
-    m_TransformParent: {fileID: 304469100584092220}
+    m_TransformParent: {fileID: 4929558766976544112}
     m_Modifications:
     - target: {fileID: 1263104843689366354, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
       propertyPath: m_LocalRotation.w
@@ -20850,6 +20850,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 7610657081322843842, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1954340032}
+    - targetCorrespondingSourceObject: {fileID: 7610657081322843842, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 930000000000000007}
     - targetCorrespondingSourceObject: {fileID: 1096126291022080089, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 977492703}
@@ -20868,9 +20871,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 2662487258258324835, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 319889308}
-    - targetCorrespondingSourceObject: {fileID: 7610657081322843842, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 930000000000000007}
   m_SourcePrefab: {fileID: 100100000, guid: 83bc093acd21b49ee90e3b654cbb063c, type: 3}
 --- !u!1 &403080431
 GameObject:
@@ -86455,182 +86455,6 @@ MonoBehaviour:
   tankMovement: {fileID: 0}
   moveTextureSpeed: 0.6
   textureDirection: {x: 0, y: 1}
---- !u!1 &930000000000000002
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 930000000000000003}
-  - component: {fileID: 930000000000000004}
-  - component: {fileID: 930000000000000005}
-  - component: {fileID: 930000000000000006}
-  m_Layer: 0
-  m_Name: droneCamera
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &930000000000000003
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930000000000000002}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0.16744559, y: 0, z: 0, w: 0.9858813}
-  m_LocalPosition: {x: -0.56500244, y: 2.808, z: -0.628}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 304469100584092220}
-  m_LocalEulerAnglesHint: {x: 19.279, y: 0, z: 0}
---- !u!20 &930000000000000004
-Camera:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930000000000000002}
-  m_Enabled: 0
-  serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
-  m_projectionMatrixMode: 1
-  m_GateFitMode: 2
-  m_FOVAxisMode: 0
-  m_Iso: 200
-  m_ShutterSpeed: 0.005
-  m_Aperture: 16
-  m_FocusDistance: 10
-  m_FocalLength: 50
-  m_BladeCount: 5
-  m_Curvature: {x: 2, y: 11}
-  m_BarrelClipping: 0.25
-  m_Anamorphism: 0
-  m_SensorSize: {x: 36, y: 24}
-  m_LensShift: {x: 0, y: 0}
-  m_NormalizedViewPortRect:
-    serializedVersion: 2
-    x: 0
-    y: 0
-    width: 1
-    height: 1
-  near clip plane: 0.01
-  far clip plane: 1000
-  field of view: 60
-  orthographic: 0
-  orthographic size: 5
-  m_Depth: 0
-  m_CullingMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_RenderingPath: -1
-  m_TargetTexture: {fileID: 0}
-  m_TargetDisplay: 0
-  m_TargetEye: 3
-  m_HDR: 1
-  m_AllowMSAA: 1
-  m_AllowDynamicResolution: 0
-  m_ForceIntoRT: 0
-  m_OcclusionCulling: 1
-  m_StereoConvergence: 10
-  m_StereoSeparation: 0.022
---- !u!81 &930000000000000005
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930000000000000002}
-  m_Enabled: 0
---- !u!114 &930000000000000006
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 930000000000000002}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b7b8f394858af4af5a2d8cd4908bc7b0, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
-  target: {fileID: 1954340030}
-  offsetFromTarget: {x: 0, y: 2, z: -6}
-  followSpeed: 5
-  rotationSpeed: 5
---- !u!114 &930000000000000001
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1113059415786100870}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 01efa4ff46c1249c0bd9d578221bd8cb, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
-  droneTransform: {fileID: 1954340030}
-  droneCamera: {fileID: 930000000000000004}
-  minimapDroneMarkerPrefab: {fileID: 6631895654841420885, guid: d51038c1f54024af9931c2bb87045765, type: 3}
-  deploymentHeight: 5
-  deploymentSpeed: 3
-  returnSpeed: 4
-  maximumSpeed: 8
-  acceleration: 5
-  maximumTurnSpeed: 90
-  turnAcceleration: 180
-  turnDeceleration: 240
-  mouseSensitivityY: 0.3
-  pitchLevelingSmoothTime: 0.8
-  maximumPitch: 45
-  maximumBank: 25
-  propellerRotationSpeed: 1800
---- !u!114 &930000000000000008
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1113059415786100870}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e25c9d1c5e0c4eecb8422fbb81a64102, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
-  detectionRange: 200
-  scanInterval: 0.2
-  requireLineOfSight: 1
-  blueDetectMarker: {fileID: 21300000, guid: ec0338e5ab8c04d85895e72fb1200213, type: 3}
-  redDetectMarker: {fileID: 21300000, guid: 37799a5f4178e4e13b5cdbe8b6df98e7, type: 3}
-  markerSize: {x: 36, y: 36}
-  markerPadding: {x: 24, y: 24}
---- !u!114 &930000000000000007
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1954340029}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ca09d6c64e4a4b30a8bd9172e0314f72, type: 3}
-  m_Name: ""
-  m_EditorClassIdentifier: ""
-  explosionPrefab: {fileID: 100006, guid: 4575df893a6e3f64a8283dee38413a34, type: 3}
-  firePrefab: {fileID: 100000, guid: dc0674a8a869b5043ab6f4155bdd5b02, type: 3}
-  explosionEffectDuration: 5
-  explosionRadius: 6
-  explosionForce: 500
-  upwardsModifier: 0.5
-  sinkSpeed: 3
-  destroyDelay: 8
 --- !u!1001 &1535981052
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -123799,6 +123623,12 @@ MonoBehaviour:
   menuBackgroundImage: {fileID: 2090000073}
   menuBackgroundTexture: {fileID: 2800000, guid: d6f09e7457c54b15b531e7e6384403e9, type: 3}
   finishMenuDelay: 2
+  onlineServiceUrl: http://localhost:3000
+  lanLobbyServiceUrl: http://localhost:3001
+  reownAppKitPrefab: {fileID: 6019781919744940759, guid: fc9e7b2d2aa114b7684aede0fa95d202, type: 3}
+  reownProjectId: ca5c7f02f2b05d31ebfa25a0a397d00e
+  tankCoinContractAddress: 0x4fc5efd55b1c845e2e88b8431C0d018a6E5331FC
+  tankGameContractAddress: 0xed892a064b18F60b823634E4eaD74851FA6F29b6
   menuPanelCanvas: {fileID: 2090000002}
   menuPanelImage: {fileID: 2090000007}
   menuPanelRectTransform: {fileID: 2090000006}
@@ -131240,7 +131070,6 @@ Transform:
   - {fileID: 3381821543771334550}
   - {fileID: 7790063700649519180}
   - {fileID: 679768256}
-  - {fileID: 1954340030}
   - {fileID: 930000000000000003}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -131375,6 +131204,182 @@ Transform:
   m_Children: []
   m_Father: {fileID: 304469100584092220}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &930000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113059415786100870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01efa4ff46c1249c0bd9d578221bd8cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  droneTransform: {fileID: 1954340030}
+  droneCamera: {fileID: 930000000000000004}
+  minimapDroneMarkerPrefab: {fileID: 6631895654841420885, guid: d51038c1f54024af9931c2bb87045765, type: 3}
+  deploymentHeight: 5
+  deploymentSpeed: 3
+  returnSpeed: 4
+  maximumSpeed: 8
+  acceleration: 5
+  maximumTurnSpeed: 90
+  turnAcceleration: 180
+  turnDeceleration: 240
+  mouseSensitivityY: 0.3
+  pitchLevelingSmoothTime: 0.8
+  maximumPitch: 45
+  maximumBank: 25
+  propellerRotationSpeed: 1800
+--- !u!1 &930000000000000002
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 930000000000000003}
+  - component: {fileID: 930000000000000004}
+  - component: {fileID: 930000000000000005}
+  - component: {fileID: 930000000000000006}
+  m_Layer: 0
+  m_Name: droneCamera
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &930000000000000003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930000000000000002}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.16744559, y: 0, z: 0, w: 0.9858813}
+  m_LocalPosition: {x: -0.56500244, y: 2.808, z: -0.628}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 304469100584092220}
+  m_LocalEulerAnglesHint: {x: 19.279, y: 0, z: 0}
+--- !u!20 &930000000000000004
+Camera:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930000000000000002}
+  m_Enabled: 0
+  serializedVersion: 2
+  m_ClearFlags: 1
+  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_projectionMatrixMode: 1
+  m_GateFitMode: 2
+  m_FOVAxisMode: 0
+  m_Iso: 200
+  m_ShutterSpeed: 0.005
+  m_Aperture: 16
+  m_FocusDistance: 10
+  m_FocalLength: 50
+  m_BladeCount: 5
+  m_Curvature: {x: 2, y: 11}
+  m_BarrelClipping: 0.25
+  m_Anamorphism: 0
+  m_SensorSize: {x: 36, y: 24}
+  m_LensShift: {x: 0, y: 0}
+  m_NormalizedViewPortRect:
+    serializedVersion: 2
+    x: 0
+    y: 0
+    width: 1
+    height: 1
+  near clip plane: 0.01
+  far clip plane: 1000
+  field of view: 60
+  orthographic: 0
+  orthographic size: 5
+  m_Depth: 0
+  m_CullingMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_RenderingPath: -1
+  m_TargetTexture: {fileID: 0}
+  m_TargetDisplay: 0
+  m_TargetEye: 3
+  m_HDR: 1
+  m_AllowMSAA: 1
+  m_AllowDynamicResolution: 0
+  m_ForceIntoRT: 0
+  m_OcclusionCulling: 1
+  m_StereoConvergence: 10
+  m_StereoSeparation: 0.022
+--- !u!81 &930000000000000005
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930000000000000002}
+  m_Enabled: 0
+--- !u!114 &930000000000000006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 930000000000000002}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b8f394858af4af5a2d8cd4908bc7b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 1954340030}
+  offsetFromTarget: {x: 0, y: 2, z: -6}
+  followSpeed: 5
+  rotationSpeed: 5
+--- !u!114 &930000000000000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1954340029}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ca09d6c64e4a4b30a8bd9172e0314f72, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  explosionPrefab: {fileID: 100006, guid: 4575df893a6e3f64a8283dee38413a34, type: 3}
+  firePrefab: {fileID: 100000, guid: dc0674a8a869b5043ab6f4155bdd5b02, type: 3}
+  explosionEffectDuration: 5
+  explosionRadius: 6
+  explosionForce: 500
+  upwardsModifier: 0.5
+  sinkSpeed: 3
+  destroyDelay: 8
+--- !u!114 &930000000000000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1113059415786100870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e25c9d1c5e0c4eecb8422fbb81a64102, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  detectionRange: 200
+  scanInterval: 0.2
+  requireLineOfSight: 1
+  blueDetectMarker: {fileID: 21300000, guid: ec0338e5ab8c04d85895e72fb1200213, type: 3}
+  redDetectMarker: {fileID: 21300000, guid: 37799a5f4178e4e13b5cdbe8b6df98e7, type: 3}
+  markerSize: {x: 36, y: 36}
+  markerPadding: {x: 24, y: 24}
 --- !u!23 &1033634407036009856
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -132349,6 +132354,7 @@ Transform:
   - {fileID: 2057734007659865215}
   - {fileID: 5474561983051396669}
   - {fileID: 2348721788081816103}
+  - {fileID: 1954340030}
   m_Father: {fileID: 304469100584092220}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &4978180595280714782

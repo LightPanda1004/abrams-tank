@@ -1,0 +1,6 @@
+.env
+.env.compose
+node_modules/
+npm-debug.log*
+game-server/*
+!game-server/.gitkeep

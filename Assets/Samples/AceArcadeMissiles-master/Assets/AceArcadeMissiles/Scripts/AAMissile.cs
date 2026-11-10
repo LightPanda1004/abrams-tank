@@ -19,8 +19,8 @@ public enum UpdateType
 public class AAMissile : MonoBehaviour
 {
     new Transform transform;
-    new Rigidbody rigidbody;
-    new CapsuleCollider collider;
+    Rigidbody missileBody;
+    CapsuleCollider missileCollider;
 
     [Header("General Parameters:")]
     [Tooltip("Run movement code in fixed update versus update.\n\nIf you notice jittery movement, try changing this. Fixed Update is typically used for rigidbody based projects.")]
@@ -102,8 +102,8 @@ public class AAMissile : MonoBehaviour
     private void Awake()
     {
         transform = GetComponent<Transform>();
-        rigidbody = GetComponent<Rigidbody>();
-        collider = GetComponent<CapsuleCollider>();
+        missileBody = GetComponent<Rigidbody>();
+        missileCollider = GetComponent<CapsuleCollider>();
         missileEffect = GetComponent<AAMissileEffects>();
     }
 
@@ -113,7 +113,7 @@ public class AAMissile : MonoBehaviour
         if (ownShip != null)
         {
             foreach (Collider col in ownShip.GetComponentsInChildren<Collider>())
-                Physics.IgnoreCollision(collider, col);
+                Physics.IgnoreCollision(missileCollider, col);
         }
 
         // Find attach point if necessary.
@@ -131,7 +131,7 @@ public class AAMissile : MonoBehaviour
         // If this hasn't already been launched, make sure it's kinematic so that it can be mounted on
         // stuff. When a missile is spawned and then launched immediately, Launch happens before start.
         if (!isLaunched)
-            rigidbody.isKinematic = true;
+            missileBody.isKinematic = true;
     }
 
     private void Update()
@@ -188,12 +188,12 @@ public class AAMissile : MonoBehaviour
             transform.parent = null;
             target = newTarget;
             launchVelocity = inheritedVelocity;
-            rigidbody.isKinematic = false;
+            missileBody.isKinematic = false;
 
             if (dropDelay > 0.0f)
             {
-                rigidbody.useGravity = gravity;
-                rigidbody.velocity = inheritedVelocity + transform.TransformDirection(ejectVelocity);
+                missileBody.useGravity = gravity;
+                missileBody.velocity = inheritedVelocity + transform.TransformDirection(ejectVelocity);
             }
             else
                 ActivateMissile();
@@ -232,7 +232,7 @@ public class AAMissile : MonoBehaviour
                 if (movementUpdateCycle == UpdateType.Update)
                     transform.Translate(transform.forward * missileSpeed * Time.deltaTime, Space.World);
                 else if (movementUpdateCycle == UpdateType.FixedUpdate)
-                    rigidbody.velocity = transform.forward * missileSpeed;
+                    missileBody.velocity = transform.forward * missileSpeed;
             }
 
             if (TimeSince(launchTime) > timeToLive)
@@ -304,7 +304,7 @@ public class AAMissile : MonoBehaviour
             if (dropDelay > 0.0f)
             {
                 // When dropping, used the forward speed of the currently free-falling missile.
-                float localForwardSpeed = transform.InverseTransformDirection(rigidbody.velocity).z;
+                float localForwardSpeed = transform.InverseTransformDirection(missileBody.velocity).z;
                 initialSpeed = localForwardSpeed;
             }
             else
@@ -315,8 +315,8 @@ public class AAMissile : MonoBehaviour
             }
         }
 
-        rigidbody.useGravity = false;
-        rigidbody.velocity = Vector3.zero;
+        missileBody.useGravity = false;
+        missileBody.velocity = Vector3.zero;
         missileActive = true;
 
         // If no motor lifetime is present, then the motor will just always be active.

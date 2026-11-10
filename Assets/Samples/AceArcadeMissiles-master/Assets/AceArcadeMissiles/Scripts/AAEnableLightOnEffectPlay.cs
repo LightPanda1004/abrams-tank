@@ -17,7 +17,7 @@ public class AAEnableLightOnEffectPlay : MonoBehaviour
     TrailRenderer trail;
     ParticleSystem ps_Trail;
 
-    new Light light;
+    Light lightComponent;
 
     void Awake()
     {
@@ -27,7 +27,7 @@ public class AAEnableLightOnEffectPlay : MonoBehaviour
         else if (effectTypeToReference == AAEffectType.Particle)
             ps_Trail = GetComponentInParent<ParticleSystem>();
         
-        light = GetComponent<Light>();
+        lightComponent = GetComponent<Light>();
     }
 
     void Update()
@@ -35,17 +35,17 @@ public class AAEnableLightOnEffectPlay : MonoBehaviour
         if (effectTypeToReference == AAEffectType.Trail)
         {
             if (trail != null && trail.enabled)
-                light.enabled = true;
+                lightComponent.enabled = true;
             else
-                light.enabled = false;
+                lightComponent.enabled = false;
         }
 
         else if (effectTypeToReference == AAEffectType.Particle)
         {
             if (ps_Trail != null && ps_Trail.isPlaying)
-                light.enabled = true;
+                lightComponent.enabled = true;
             else
-                light.enabled = false;
+                lightComponent.enabled = false;
         }
     }
 }
