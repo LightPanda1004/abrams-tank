@@ -397,14 +397,15 @@ function createGateway(config) {
 }
 
 async function main() {
-    if (process.env.NODE_ENV === "production" &&
-        (!process.env.TLS_CERT_FILE || !process.env.TLS_KEY_FILE)) {
+    const hasTlsCert = Boolean(process.env.TLS_CERT_FILE);
+    const hasTlsKey = Boolean(process.env.TLS_KEY_FILE);
+    if (hasTlsCert !== hasTlsKey) {
         throw new Error(
-            "Production game servers require TLS_CERT_FILE and TLS_KEY_FILE."
+            "TLS_CERT_FILE and TLS_KEY_FILE must be configured together."
         );
     }
     const config = getConfig();
-    if (process.env.TLS_CERT_FILE && process.env.TLS_KEY_FILE) {
+    if (hasTlsCert) {
         config.server = https.createServer({
             cert: fs.readFileSync(process.env.TLS_CERT_FILE),
             key: fs.readFileSync(process.env.TLS_KEY_FILE)

@@ -59,7 +59,8 @@ and sends authoritative snapshots at 20 Hz. A room supports up to 32 players.
 The gateway accepts browser WebSockets at `/game`; it authenticates each
 connection with the ticket sent as the first WebSocket message, not in the URL.
 
-Configure these values in the same `.env` used by the API:
+Configure these values in the same `.env` used by the API. For local
+development:
 
 ```dotenv
 ABRAMS_ONLINE_API_URL=http://127.0.0.1:3000
@@ -74,7 +75,87 @@ Unity client. For local development, the API permits localhost browser
 origins. In production, set `ALLOWED_ORIGINS` to the exact HTTPS game origin,
 publish a `wss://` URL, and terminate TLS either in the gateway (using
 `TLS_CERT_FILE` and `TLS_KEY_FILE`) or a reverse proxy that forwards WebSocket
-upgrades to the gateway's port. The WebSocket URL must end in `/game`.
+upgrades to the gateway's port. With a reverse proxy, leave both certificate
+variables unset and firewall the gateway port so only the proxy can reach it.
+The WebSocket URL must end in `/game`.
+
+### VPS deployment with Nginx
+
+Use a domain name whose DNS `A` record points to the VPS public IP. Browsers
+need HTTPS for the WebGL site and WSS for its game connection; do not publish
+the local `ws://` example as a production endpoint. For example, if the game
+site, API, and WebSocket endpoint all use `game.example.com`, configure:
+
+```dotenv
+NODE_ENV=production
+PORT=3000
+ALLOWED_ORIGINS=https://game.example.com
+ABRAMS_ONLINE_API_URL=https://game.example.com
+ABRAMS_ONLINE_SERVER_ID=vps-01
+ABRAMS_ONLINE_WS_PUBLIC_URL=wss://game.example.com/game
+ABRAMS_ONLINE_WS_PORT=7777
+ABRAMS_ONLINE_MAX_PLAYERS=32
+```
+
+Also set `DATABASE_URL` to the VPS PostgreSQL database and replace
+`ACCESS_TOKEN_SECRET` and `SERVER_API_TOKEN` with separate, random secrets of
+at least 32 characters. Keep PostgreSQL, port 3000, and port 7777 inaccessible
+from the public internet. Allow inbound SSH and HTTPS (ports 22 and 443); allow
+HTTP port 80 only if using it for the HTTPS redirect and certificate setup.
+
+Configure Nginx with a valid certificate for the domain. Serve the Unity
+WebGL build from `/var/www/abrams`, proxy API requests to port 3000, and proxy
+the WebSocket route to port 7777. The `/game` location must preserve the
+WebSocket upgrade:
+
+```nginx
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 443 ssl;
+    server_name game.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/game.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/game.example.com/privkey.pem;
+
+    root /var/www/abrams;
+    index index.html;
+
+    location /game {
+        proxy_pass http://127.0.0.1:7777;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location = /health {
+        proxy_pass http://127.0.0.1:3000/health;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+Start PostgreSQL, then run `npm start` and `npm run start:game-ws-gateway`
+from this directory (use a process manager such as systemd to keep both
+running after logout/reboot). Publish the contents of the Unity WebGL build
+to `/var/www/abrams`. In the Unity scene used for the WebGL build, set the
+`GameDirector` **Online Service Url** to `https://game.example.com`, rebuild,
+and upload the new build. Create an account and room in the browser; the
+gateway should log that the assigned room is ready.
 
 After starting the API with `npm start`, start the gateway in another process:
 
