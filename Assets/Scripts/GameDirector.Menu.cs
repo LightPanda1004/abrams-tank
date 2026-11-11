@@ -317,6 +317,19 @@ public partial class GameDirector
             {
                 message += " Check the online service log for this request.";
             }
+            if (request.result == UnityWebRequest.Result.ConnectionError &&
+                request.error != null &&
+                request.error.IndexOf(
+                    "Insecure connection not allowed",
+                    StringComparison.OrdinalIgnoreCase
+                ) >= 0)
+            {
+                message =
+                    "WebGL blocked the plain-HTTP API connection. For local " +
+                    "testing, enable Development Build and set Player Settings " +
+                    "to allow HTTP in Development Only. For a public build, " +
+                    "serve the API over HTTPS.";
+            }
             onFailure?.Invoke(message);
         }
     }

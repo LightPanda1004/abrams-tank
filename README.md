@@ -46,6 +46,10 @@ The online flow uses the Node.js/PostgreSQL service for accounts and room
 allocation, then connects WebGL clients to an authoritative WebSocket game
 gateway. Rooms support up to 32 players and blue/red team selection. See the
 [online server setup](./server/README.md) to configure and run both processes.
+For local WebGL testing against an HTTP API, enable **Development Build** and
+set **Player Settings → WebGL → Publishing Settings → Allow downloads over
+HTTP** to **Development Only**, then rebuild. Do not allow insecure HTTP in
+release builds: public account and game connections must use HTTPS and WSS.
 The current gateway simulates an authoritative tank arena rather than running
 Unity physics; it is a separate gameplay model from the local single-player
 scene. The online menu also provides an Ethereum Sepolia TCOIN/equipment panel.

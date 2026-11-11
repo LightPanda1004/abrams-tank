@@ -7,7 +7,7 @@ const http = require("node:http");
 const { once } = require("node:events");
 const test = require("node:test");
 const { WebSocket } = require("ws");
-const { createGateway } = require("./game-ws-gateway");
+const { createGateway, getConfig } = require("./game-ws-gateway");
 
 function respond(response, status, value) {
     response.writeHead(status, {
@@ -44,6 +44,53 @@ function connectAndAuthenticate(url, ticket) {
     });
     return { socket, authenticated };
 }
+
+test("gateway rejects loopback public endpoint without explicit local opt-in", () => {
+    const configKeys = [
+        "ABRAMS_ONLINE_API_URL",
+        "ABRAMS_ONLINE_SERVER_ID",
+        "ABRAMS_ONLINE_WS_PUBLIC_URL",
+        "ABRAMS_ONLINE_ALLOW_LOCAL_WS_URL",
+        "ABRAMS_ONLINE_WS_PORT",
+        "ABRAMS_ONLINE_MAX_PLAYERS",
+        "SERVER_API_TOKEN",
+        "NODE_ENV"
+    ];
+    const originalValues = new Map(
+        configKeys.map(key => [key, process.env[key]])
+    );
+
+    try {
+        process.env.ABRAMS_ONLINE_API_URL =
+            "http://62.210.246.125:3000";
+        process.env.ABRAMS_ONLINE_SERVER_ID = "test-gateway";
+        process.env.ABRAMS_ONLINE_WS_PUBLIC_URL =
+            "ws://127.0.0.1:7777/game";
+        delete process.env.ABRAMS_ONLINE_ALLOW_LOCAL_WS_URL;
+        process.env.ABRAMS_ONLINE_WS_PORT = "7777";
+        process.env.ABRAMS_ONLINE_MAX_PLAYERS = "32";
+        process.env.SERVER_API_TOKEN =
+            "test-server-token-that-is-long-enough";
+        delete process.env.NODE_ENV;
+
+        assert.throws(
+            () => getConfig(),
+            /players cannot reach/
+        );
+        process.env.ABRAMS_ONLINE_ALLOW_LOCAL_WS_URL = "true";
+        assert.equal(
+            getConfig().publicWsUrl,
+            "ws://127.0.0.1:7777/game"
+        );
+    } finally {
+        for (const [key, value] of originalValues) {
+            if (value === undefined)
+                delete process.env[key];
+            else
+                process.env[key] = value;
+        }
+    }
+});
 
 test(
     "gateway refreshes assignment before ticket auth and replaces reconnects",

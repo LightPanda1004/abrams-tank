@@ -28,6 +28,13 @@ function validServerId(value) {
         /^[A-Za-z0-9_-]{1,64}$/.test(value);
 }
 
+function isLoopbackHost(hostname) {
+    const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return host === "localhost" ||
+        host === "::1" ||
+        host.startsWith("127.");
+}
+
 function getConfig() {
     const apiUrl = new URL(requiredEnv("ABRAMS_ONLINE_API_URL"));
     const serverId = requiredEnv("ABRAMS_ONLINE_SERVER_ID");
@@ -44,6 +51,16 @@ function getConfig() {
         !Number.isInteger(maxPlayers) || maxPlayers < 2 ||
         maxPlayers > ROOM_CAPACITY || serverToken.length < 32) {
         throw new Error("Dedicated WebSocket server configuration is invalid.");
+    }
+    if (isLoopbackHost(publicWsUrl.hostname) &&
+        process.env.ABRAMS_ONLINE_ALLOW_LOCAL_WS_URL !== "true") {
+        throw new Error(
+            "ABRAMS_ONLINE_WS_PUBLIC_URL points to localhost/loopback, " +
+            "which players cannot reach unless the gateway runs on their " +
+            "own computer. Set it to the VPS's public WebSocket address or " +
+            "domain and restart the gateway. For local-only development, " +
+            "explicitly set ABRAMS_ONLINE_ALLOW_LOCAL_WS_URL=true."
+        );
     }
     if (process.env.NODE_ENV === "production" &&
         (apiUrl.protocol !== "https:" || publicWsUrl.protocol !== "wss:")) {
@@ -438,5 +455,6 @@ if (require.main === module) {
 module.exports = {
     getConfig,
     createGateway,
-    validServerId
+    validServerId,
+    isLoopbackHost
 };

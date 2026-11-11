@@ -294,6 +294,17 @@ public partial class GameDirector
                 "The room server returned an invalid WebSocket ticket or URL.";
             return;
         }
+        if (socketUri.IsLoopback &&
+            Uri.TryCreate(onlineServiceUrl, UriKind.Absolute, out Uri apiUri) &&
+            !apiUri.IsLoopback)
+        {
+            onlineStatusMessage =
+                "The room server advertised a localhost WebSocket URL. On the " +
+                "VPS, set ABRAMS_ONLINE_WS_PUBLIC_URL to " +
+                "ws://62.210.246.125:7777/game, open TCP port 7777, then restart " +
+                "the WebSocket gateway and create a new room.";
+            return;
+        }
 #if UNITY_WEBGL && !UNITY_EDITOR
         bool pageUsesTls = Application.absoluteURL.StartsWith(
             "https://",
