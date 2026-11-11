@@ -117,20 +117,6 @@ public class MinimapMarker : MonoBehaviour
 
     private void LateUpdate()
     {
-        NetworkTankPlayer networkPlayer =
-            GetComponent<NetworkTankPlayer>();
-        if (networkPlayer != null && networkPlayer.IsSpawned)
-        {
-            if (!networkPlayer.HasTeam ||
-                NetworkTankPlayer.LocalPlayerTeam == TankTeam.Unassigned ||
-                networkPlayer.Team != NetworkTankPlayer.LocalPlayerTeam)
-            {
-                SetVisible(tankMarkerInstance, false);
-                SetVisible(edgeMarkerInstance, false);
-                return;
-            }
-        }
-
         ApplyPlayerMarkerColor();
 
         if (targetTank == null ||
@@ -259,28 +245,11 @@ public class MinimapMarker : MonoBehaviour
 
     private void ApplyPlayerMarkerColor()
     {
-        NetworkTankPlayer networkPlayer =
-            GetComponent<NetworkTankPlayer>();
         TankHealth health = GetComponent<TankHealth>();
 
-        Color markerColor;
-        if (networkPlayer != null && networkPlayer.IsSpawned)
-        {
-            if (!networkPlayer.HasTeam)
-                return;
-
-            markerColor = networkPlayer.Team == TankTeam.Red
-                ? redTeamColor
-                : blueTeamColor;
-        }
-        else if (health != null && health.isPlayerTank)
-        {
-            markerColor = blueTeamColor;
-        }
-        else
-        {
+        if (health == null || !health.isPlayerTank)
             return;
-        }
+        Color markerColor = blueTeamColor;
 
         Image tankImage = tankMarkerRect != null
             ? tankMarkerRect.GetComponent<Image>()

@@ -41,11 +41,14 @@ Packages/           Unity package manifest
 ProjectSettings/    Editor and player settings
 ```
 
-Gameplay is a set of `MonoBehaviour` components. Online accounts and room
-coordination are provided by the Node.js/PostgreSQL service in [server](./server/README.md).
-Internet matches use separately deployed Unity dedicated-server builds and
-the online service and Unity Transport. The online menu also provides player
-profiles and an Ethereum Sepolia TCOIN/equipment panel.
+The project includes local single-player play and browser-based online rooms.
+The online flow uses the Node.js/PostgreSQL service for accounts and room
+allocation, then connects WebGL clients to an authoritative WebSocket game
+gateway. Rooms support up to 32 players and blue/red team selection. See the
+[online server setup](./server/README.md) to configure and run both processes.
+The current gateway simulates an authoritative tank arena rather than running
+Unity physics; it is a separate gameplay model from the local single-player
+scene. The online menu also provides an Ethereum Sepolia TCOIN/equipment panel.
 
 ## Online blockchain setup
 
@@ -65,10 +68,11 @@ template is configured with these supplied addresses:
 
 The TankGame address has bytecode on Ethereum Sepolia and its `coin()` getter
 returns the configured TankCoin address, but that TankCoin address currently
-has no bytecode there. TCOIN and equipment transactions, and backend battle
-rewards, remain disabled until TankCoin and TankGame are deployed with TankGame
-pointing to the deployed TankCoin address, and the addresses are updated in
-Unity `GameDirector` and `server/.env`. Grant the `TankGame` contract
+has no bytecode there. TCOIN and equipment transactions remain disabled until
+TankCoin and TankGame are deployed with TankGame pointing to the deployed
+TankCoin address, and the addresses are updated in Unity `GameDirector` and
+`server/.env`. Battle rewards are not available in this single-player build.
+Grant the `TankGame` contract
 the required `MINTER_ROLE` and `GAME_ROLE` on TankCoin, and grant the trusted
 backend signer `GAME_SERVER_ROLE` on TankGame. Never put the backend signer
 key in the Unity project.
@@ -92,7 +96,8 @@ Desktop builds continue to use Reown AppKit and WalletConnect.
 | Damage | `TankHealth.cs`, `TankShell.cs` |
 | AI tanks | `AITankRandomspawner.cs` (`AIRandomSpawner`), `AITankController.cs` |
 | Drones | `AIDroneSpawner.cs`, `AIDroneController.cs`, `AntiDroneLauncher.cs`, `MissileScript.cs` (`HomingMissile`) |
-| Online accounts and rooms | [server/src/index.js](./server/src/index.js), [server/src/security.js](./server/src/security.js) |
+| Online client | [GameDirector.OnlineMultiplayer.cs](./Assets/Scripts/GameDirector.OnlineMultiplayer.cs), [AbramsGameSocket.jslib](./Assets/Plugins/WebGL/AbramsGameSocket.jslib) |
+| Online API and WebSocket gateway | [server/src/index.js](./server/src/index.js), [server/src/game-ws-gateway.js](./server/src/game-ws-gateway.js), [server/src/game-room.js](./server/src/game-room.js) |
 
 Third-party art and VFX live under `Assets/Samples/` and `Assets/Tiny Teacup Studio/`.
 

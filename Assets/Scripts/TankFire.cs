@@ -2,7 +2,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using Unity.Netcode;
 
 public class TankFire : MonoBehaviour
 {
@@ -137,19 +136,7 @@ public class TankFire : MonoBehaviour
 
         SetReloadUIVisible(true);
 
-        NetworkTankPlayer networkPlayer =
-            GetComponent<NetworkTankPlayer>();
-        NetworkManager networkManager = NetworkManager.Singleton;
-
-        if (networkPlayer != null && networkPlayer.IsSpawned &&
-            networkManager != null && networkManager.IsListening)
-        {
-            networkPlayer.FireShellServerRpc(shellSpeed);
-        }
-        else
-        {
-            SpawnLocalShell();
-        }
+        SpawnLocalShell();
 
         // Spawn muzzle effect only after firing.
         if (muzzleExplosionPrefab != null)

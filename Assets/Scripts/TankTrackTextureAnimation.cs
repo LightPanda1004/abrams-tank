@@ -9,7 +9,6 @@ public class TankTrackTextureAnimation : MonoBehaviour
     [Header("Tank Movement")]
     public TankMovement tankMovement;
 
-    private NetworkTankPlayer networkTankPlayer;
     [Header("Animation Speed")]
     public float moveTextureSpeed = 0.3f;
 
@@ -26,9 +25,6 @@ public class TankTrackTextureAnimation : MonoBehaviour
 
         if (tankMovement == null)
             tankMovement = GetComponentInParent<TankMovement>();
-
-        networkTankPlayer =
-            GetComponentInParent<NetworkTankPlayer>();
 
         if (trackRenderer == null)
         {
@@ -54,11 +50,7 @@ public class TankTrackTextureAnimation : MonoBehaviour
 
     void Update()
     {
-        float actualSpeed = networkTankPlayer != null
-            ? networkTankPlayer.DisplayedTankSpeed
-            : tankMovement.currentSpeed;
-
-        AnimateTrack(actualSpeed);
+        AnimateTrack(tankMovement.currentSpeed);
     }
 
     void AnimateTrack(float speed)

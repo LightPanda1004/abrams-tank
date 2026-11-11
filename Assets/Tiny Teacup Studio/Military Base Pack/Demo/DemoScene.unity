@@ -80737,7 +80737,7 @@ Canvas:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1443474677}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_RenderMode: 0
   m_Camera: {fileID: 0}
@@ -83994,7 +83994,7 @@ Canvas:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1495052693}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_RenderMode: 0
   m_Camera: {fileID: 0}
@@ -97901,7 +97901,7 @@ Canvas:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1714317361}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_RenderMode: 0
   m_Camera: {fileID: 0}
@@ -111968,7 +111968,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 0.9, y: 2.02, z: 3}
   m_Center: {x: 0.0000038146973, y: 1.01, z: 0}
@@ -123566,86 +123566,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d49466ef62a8c4a0a85036559cca0a79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentGameMode: 0
   totalAITanks: 0
   destroyedTanks: 0
   playerHealth: {fileID: 577886535787951797}
   playerMovement: {fileID: 0}
-  multiplayerTankPrefab: {fileID: 1113059415095294403, guid: 00809aa3c9cd0487494c7cc961c7d585, type: 3}
-  maximumSpeedDisplay: 10
-  aiObjectsToDisableForMultiplayer: []
   MouseTurretControlEnabled: 1
   showMainMenu: 1
-  multiplayerMenuPanelSprite: {fileID: 21300000, guid: 85798f049d2cd41fda5d0b12ab8a7503, type: 3}
-  startMenuPanelSprite: {fileID: -681683024, guid: e5dafd44dc33b4963ac79b000af390b8, type: 3}
-  pauseMenuPanelSprite: {fileID: -351309539, guid: e5dafd44dc33b4963ac79b000af390b8, type: 3}
-  settingsMenuPanelSprite: {fileID: -1936942611, guid: e5dafd44dc33b4963ac79b000af390b8, type: 3}
-  menuButtonSprites:
-  - {fileID: -925918979, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1393542808, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -1982399483, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 950879097, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -1146860209, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -2129927489, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1674680751, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 794412624, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1998753863, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -784479997, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -476891852, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -263595795, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 100352996, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1726863759, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -72554684, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -1266835767, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1270050254, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -1836968389, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -390673605, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -596662212, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 735101534, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1987574520, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -254918099, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -1759378766, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -584390821, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 1260766940, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: -264415177, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 381557008, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 3300195, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 689835202, guid: a915712a90906422381a1ac9d9cb2a08, type: 3}
-  - {fileID: 93970474, guid: cbf8f90cf91b640d2865611f8dbc62af, type: 3}
-  - {fileID: 1087460888, guid: cbf8f90cf91b640d2865611f8dbc62af, type: 3}
-  - {fileID: 11716383, guid: cbf8f90cf91b640d2865611f8dbc62af, type: 3}
-  - {fileID: 1798993533, guid: cbf8f90cf91b640d2865611f8dbc62af, type: 3}
-  - {fileID: 1634794642, guid: cbf8f90cf91b640d2865611f8dbc62af, type: 3}
-  - {fileID: -293163939, guid: cbf8f90cf91b640d2865611f8dbc62af, type: 3}
-  - {fileID: 623679847, guid: e035c538622b144baa64e778ef0f434a, type: 3}
-  - {fileID: -1053832111, guid: e035c538622b144baa64e778ef0f434a, type: 3}
-  - {fileID: -573642777, guid: e035c538622b144baa64e778ef0f434a, type: 3}
-  menuBackgroundImage: {fileID: 2090000073}
-  menuBackgroundTexture: {fileID: 2800000, guid: d6f09e7457c54b15b531e7e6384403e9, type: 3}
   finishMenuDelay: 2
   onlineServiceUrl: http://localhost:3000
   reownAppKitPrefab: {fileID: 6019781919744940759, guid: fc9e7b2d2aa114b7684aede0fa95d202, type: 3}
   reownProjectId: ca5c7f02f2b05d31ebfa25a0a397d00e
   tankCoinContractAddress: 0x4fc5efd55b1c845e2e88b8431C0d018a6E5331FC
   tankGameContractAddress: 0xed892a064b18F60b823634E4eaD74851FA6F29b6
-  menuPanelCanvas: {fileID: 2090000002}
-  menuPanelImage: {fileID: 2090000007}
-  menuPanelRectTransform: {fileID: 2090000006}
-  menuButtonCanvas: {fileID: 2090000002}
-  menuSceneButtons:
-  - {fileID: 2090000014}
-  - {fileID: 2090000024}
-  - {fileID: 2090000034}
-  - {fileID: 2090000044}
-  - {fileID: 2090000054}
-  - {fileID: 2090000064}
-  leopardBattleMenuCanvas: {fileID: 1906756701}
-  multiplayerMenuCanvas: {fileID: 1520867223}
-  settingsMenuCanvas: {fileID: 72347314}
-  joinRoomMenuCanvas: {fileID: 306578025}
-  gamePauseCanvas: {fileID: 1495052696}
-  victoryMenuCanvas: {fileID: 1443474680}
-  defeatMenuCanvas: {fileID: 1714317364}
 --- !u!114 &2065725096
 MonoBehaviour:
   m_ObjectHideFlags: 0

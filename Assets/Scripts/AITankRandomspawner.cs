@@ -26,8 +26,7 @@ public class AIRandomSpawner : MonoBehaviour
     private void Start()
     {
         if (GameDirector.Instance != null &&
-            (GameDirector.Instance.IsMultiplayerMode ||
-             GameDirector.Instance.IsPaused))
+            GameDirector.Instance.IsPaused)
         {
             return;
         }

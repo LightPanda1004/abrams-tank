@@ -1,10 +1,9 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Netcode;
 using UnityEngine;
 
-public class TankShell : NetworkBehaviour
+public class TankShell : MonoBehaviour
 {
     [Header("Shell Settings")]
     public float damage = 25f;
@@ -24,13 +23,6 @@ public class TankShell : NetworkBehaviour
     public float trailCleanupTime = 5f;
 
     private Transform ownerRoot;
-    private TankTeam ownerTeam;
-    private readonly NetworkVariable<byte> syncedOwnerTeam =
-        new NetworkVariable<byte>(
-            (byte)TankTeam.Unassigned,
-            NetworkVariableReadPermission.Everyone,
-            NetworkVariableWritePermission.Server
-        );
     private Rigidbody rb;
     private Collider shellCollider;
     private bool hasExploded;
@@ -42,25 +34,6 @@ public class TankShell : NetworkBehaviour
         rb = GetComponent<Rigidbody>();
         shellCollider = GetComponent<Collider>();
         previousPosition = transform.position;
-    }
-
-    public override void OnNetworkSpawn()
-    {
-        syncedOwnerTeam.OnValueChanged += OnOwnerTeamChanged;
-
-        if (IsServer)
-        {
-            syncedOwnerTeam.Value = (byte)ownerTeam;
-        }
-        else
-        {
-            ownerTeam = (TankTeam)syncedOwnerTeam.Value;
-        }
-    }
-
-    public override void OnNetworkDespawn()
-    {
-        syncedOwnerTeam.OnValueChanged -= OnOwnerTeamChanged;
     }
 
     void FixedUpdate()
@@ -203,39 +176,15 @@ public class TankShell : NetworkBehaviour
         StartCoroutine(LifetimeRoutine());
     }
 
-    public void SetOwner(
-        Transform owner,
-        TankTeam team = TankTeam.Unassigned)
+    public void SetOwner(Transform owner)
     {
         if (owner != null)
             ownerRoot = owner.root;
-
-        ownerTeam = team;
-
-        if (IsSpawned &&
-            NetworkManager.Singleton != null &&
-            NetworkManager.Singleton.IsListening &&
-            NetworkManager.Singleton.IsServer)
-        {
-            syncedOwnerTeam.Value = (byte)team;
-        }
-    }
-
-    private void OnOwnerTeamChanged(byte previousTeam, byte newTeam)
-    {
-        ownerTeam = (TankTeam)newTeam;
     }
 
     IEnumerator LifetimeRoutine()
     {
         yield return new WaitForSeconds(lifetime);
-
-        NetworkObject networkObject = GetComponent<NetworkObject>();
-        if (networkObject != null && networkObject.IsSpawned &&
-            NetworkManager.Singleton != null &&
-            NetworkManager.Singleton.IsListening &&
-            !NetworkManager.Singleton.IsServer)
-            yield break;
 
         if (!hasExploded)
             BeginDisappearance();
@@ -246,22 +195,10 @@ public class TankShell : NetworkBehaviour
         if (hasExploded)
             return;
 
-        NetworkObject networkObject = GetComponent<NetworkObject>();
-        bool isNetworkedShell = networkObject != null &&
-            networkObject.IsSpawned &&
-            NetworkManager.Singleton != null &&
-            NetworkManager.Singleton.IsListening;
-
-        if (isNetworkedShell && !NetworkManager.Singleton.IsServer)
-            return;
-
         if (ShouldIgnoreCollider(other))
             return;
 
         TankHealth health = other.GetComponentInParent<TankHealth>();
-        NetworkTankPlayer targetPlayer = health != null
-            ? health.GetComponent<NetworkTankPlayer>()
-            : null;
         TankDroneImpact droneImpact =
             other.GetComponentInParent<TankDroneImpact>();
 
@@ -279,68 +216,12 @@ public class TankShell : NetworkBehaviour
         ApplyBlastForce(hitPosition);
 
         if (droneImpact != null)
-        {
-            if (isNetworkedShell)
-            {
-                if (NetworkManager.Singleton.IsServer)
-                {
-                    NetworkTankPlayer droneOwner =
-                        droneImpact.NetworkPlayer;
-                    if (droneOwner != null)
-                        droneOwner.DestroyDroneFromTankShell(hitPosition);
-                }
-            }
-            else
-            {
-                droneImpact.DestroyFromTankShell(hitPosition);
-            }
-        }
+            droneImpact.DestroyFromTankShell(hitPosition);
 
         // Apply damage to a tank.
-        if (health != null &&
-            (!isNetworkedShell || NetworkManager.Singleton.IsServer))
-        {
-            bool targetWasAlive = health.CurrentHealth > 0f;
+        if (health != null)
             health.TakeDamage(damage, ownerRoot);
 
-            if (isNetworkedShell && targetWasAlive &&
-                health.CurrentHealth <= 0f &&
-                targetPlayer != null &&
-                targetPlayer.Team != ownerTeam)
-            {
-                NetworkTankPlayer attackingPlayer = ownerRoot != null
-                    ? ownerRoot.GetComponent<NetworkTankPlayer>()
-                    : null;
-                if (attackingPlayer != null)
-                {
-                    attackingPlayer.RegisterEnemyTankDestroyed();
-                    if (GameDirector.Instance != null)
-                    {
-                        GameDirector.Instance.NotifyOnlineTankDestroyed(
-                            attackingPlayer,
-                            targetPlayer
-                        );
-                    }
-                }
-            }
-        }
-
-        if (isNetworkedShell)
-            ImpactClientRpc(hitPosition, hitNormal, hitStaticMesh);
-
-        PlayImpactEffects(hitPosition, hitNormal, hitStaticMesh);
-    }
-
-    [ClientRpc]
-    private void ImpactClientRpc(
-        Vector3 hitPosition,
-        Vector3 hitNormal,
-        bool hitStaticMesh)
-    {
-        if (IsServer)
-            return;
-
-        ApplyBlastForce(hitPosition, true);
         PlayImpactEffects(hitPosition, hitNormal, hitStaticMesh);
     }
 
@@ -416,22 +297,10 @@ public class TankShell : NetworkBehaviour
         if (ownerRoot != null && other.transform.root == ownerRoot)
             return true;
 
-        if (ownerTeam == TankTeam.Unassigned)
-            return false;
-
-        TankHealth health = other.GetComponentInParent<TankHealth>();
-        NetworkTankPlayer targetPlayer = health != null
-            ? health.GetComponent<NetworkTankPlayer>()
-            : null;
-        if (targetPlayer != null && targetPlayer.Team == ownerTeam)
-            return true;
-
         return false;
     }
 
-    private void ApplyBlastForce(
-        Vector3 hitPosition,
-        bool skipNetworkedBodies = false)
+    private void ApplyBlastForce(Vector3 hitPosition)
     {
         if (blastRadius <= 0f || blastForce <= 0f)
             return;
@@ -452,12 +321,6 @@ public class TankShell : NetworkBehaviour
             if (body == null || body == rb || body.isKinematic ||
                 !affectedBodies.Add(body))
                 continue;
-
-            if (skipNetworkedBodies &&
-                body.GetComponentInParent<NetworkObject>() != null)
-            {
-                continue;
-            }
 
             if (ownerRoot != null && body.transform.root == ownerRoot)
                 continue;
@@ -543,18 +406,6 @@ public class TankShell : NetworkBehaviour
                 Vector3.Lerp(originalScale, Vector3.zero, progress);
 
             yield return null;
-        }
-
-        NetworkObject networkObject = GetComponent<NetworkObject>();
-        bool isNetworkedShell = networkObject != null && networkObject.IsSpawned &&
-            NetworkManager.Singleton != null && NetworkManager.Singleton.IsListening;
-
-        if (isNetworkedShell)
-        {
-            if (NetworkManager.Singleton.IsServer)
-                networkObject.Despawn(true);
-
-            yield break;
         }
 
         Destroy(gameObject);

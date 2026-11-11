@@ -32,8 +32,7 @@ public class AIDroneSpawner : MonoBehaviour
             return;
 
         GameDirector gameDirector = GameDirector.Instance;
-        if (gameDirector != null &&
-            (gameDirector.IsPaused || gameDirector.IsMultiplayerMode))
+        if (gameDirector != null && gameDirector.IsPaused)
         {
             return;
         }

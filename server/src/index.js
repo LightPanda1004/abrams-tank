@@ -25,7 +25,7 @@ const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY_BYTES = 16 * 1024;
 const ACCESS_TOKEN_SECONDS = 60 * 60 * 12;
 const JOIN_TICKET_SECONDS = 60;
-const ROOM_CAPACITY = 4;
+const ROOM_CAPACITY = 32;
 const MAX_UINT256 = (1n << 256n) - 1n;
 const GAME_SERVER_ROLE = id("GAME_SERVER_ROLE");
 const allowedOrigins = new Set(
@@ -89,10 +89,12 @@ CREATE TABLE IF NOT EXISTS game_servers (
     host TEXT NOT NULL,
     port INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535),
     max_players INTEGER NOT NULL CHECK (max_players BETWEEN 2 AND 32),
+    ws_url TEXT,
     status TEXT NOT NULL CHECK (status IN ('ready', 'busy', 'offline')),
     current_room_id BIGINT,
     heartbeat_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE game_servers ADD COLUMN IF NOT EXISTS ws_url TEXT;
 CREATE TABLE IF NOT EXISTS rooms (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
@@ -755,9 +757,10 @@ async function route(request, response) {
 
         if (method === "GET" && path === "/api/rooms") {
             const result = await pool.query(
-                `SELECT r.id::TEXT AS id, r.name, r.status, r.max_players,
-                        gs.host, gs.port,
-                        COUNT(rm.user_id)::INTEGER AS player_count
+                `SELECT r.id::TEXT AS id, r.name, r.status,
+                        r.max_players AS "maxPlayers",
+                        gs.host, gs.port, gs.ws_url AS "wsUrl",
+                        COUNT(rm.user_id)::INTEGER AS "playerCount"
                  FROM rooms r
                  JOIN game_servers gs ON gs.id = r.server_id
                  LEFT JOIN room_members rm ON rm.room_id = r.id
@@ -788,7 +791,7 @@ async function route(request, response) {
             try {
                 const room = await withTransaction(async client => {
                     const serverResult = await client.query(
-                        `SELECT id, host, port, max_players
+                        `SELECT id, host, port, max_players, ws_url
                          FROM game_servers
                          WHERE status = 'ready'
                            AND heartbeat_at > NOW() - INTERVAL '20 seconds'
@@ -805,7 +808,8 @@ async function route(request, response) {
                     const created = await client.query(
                         `INSERT INTO rooms (name, owner_user_id, server_id, status, max_players)
                          VALUES ($1, $2, $3, 'waiting', $4)
-                         RETURNING id::TEXT AS id, name, max_players, status`,
+                         RETURNING id::TEXT AS id, name,
+                                   max_players AS "maxPlayers", status`,
                         [name, user.sub, server.id, Math.min(ROOM_CAPACITY, server.max_players)]
                     );
                     const createdRoom = created.rows[0];
@@ -828,6 +832,7 @@ async function route(request, response) {
                         ...createdRoom,
                         host: server.host,
                         port: server.port,
+                        wsUrl: server.ws_url,
                         ticket
                     };
                 });
@@ -854,7 +859,9 @@ async function route(request, response) {
                 const room = await withTransaction(async client => {
                     const result = await client.query(
                         `SELECT r.id::TEXT AS id, r.name, r.status,
-                                r.max_players, gs.host, gs.port
+                                r.max_players AS "maxPlayers",
+                                gs.host, gs.port,
+                                gs.ws_url AS "wsUrl"
                          FROM rooms r
                          JOIN game_servers gs ON gs.id = r.server_id
                          WHERE r.id = $1
@@ -925,11 +932,28 @@ async function route(request, response) {
         const body = method === "POST" ? await readJson(request) : {};
         if (method === "POST" && path === "/api/server/register") {
             const { id, host, port, maxPlayers } = body;
+            const wsUrl = body.wsUrl;
             if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(id) ||
                 typeof host !== "string" || host.length > 255 ||
                 !Number.isInteger(port) || port < 1 || port > 65535 ||
-                !Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 32) {
+                !Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > ROOM_CAPACITY ||
+                typeof wsUrl !== "string" || wsUrl.length > 512) {
                 respond(response, 400, { error: "Invalid dedicated server configuration." });
+                return;
+            }
+            let parsedWsUrl;
+            try {
+                parsedWsUrl = new URL(wsUrl);
+            } catch {
+                respond(response, 400, { error: "Invalid dedicated server WebSocket URL." });
+                return;
+            }
+            if (!["ws:", "wss:"].includes(parsedWsUrl.protocol) ||
+                !parsedWsUrl.pathname.endsWith("/game") ||
+                parsedWsUrl.search || parsedWsUrl.hash ||
+                (process.env.NODE_ENV === "production" &&
+                    parsedWsUrl.protocol !== "wss:")) {
+                respond(response, 400, { error: "Dedicated servers must advertise a valid WebSocket game endpoint." });
                 return;
             }
             await withTransaction(async client => {
@@ -945,13 +969,14 @@ async function route(request, response) {
                 );
                 await client.query(
                     `INSERT INTO game_servers
-                        (id, host, port, max_players, status, current_room_id)
-                     VALUES ($1, $2, $3, $4, 'ready', NULL)
+                        (id, host, port, max_players, ws_url, status, current_room_id)
+                     VALUES ($1, $2, $3, $4, $5, 'ready', NULL)
                      ON CONFLICT (id) DO UPDATE SET host = EXCLUDED.host,
                         port = EXCLUDED.port,
-                        max_players = EXCLUDED.max_players, status = 'ready',
+                        max_players = EXCLUDED.max_players,
+                        ws_url = EXCLUDED.ws_url, status = 'ready',
                         current_room_id = NULL, heartbeat_at = NOW()`,
-                    [id, host, port, maxPlayers]
+                    [id, host, port, maxPlayers, parsedWsUrl.toString()]
                 );
             });
             respond(response, 200, { status: "ready" });
@@ -1128,7 +1153,7 @@ async function route(request, response) {
                 return;
             }
             const result = await pool.query(
-                `SELECT r.id::TEXT AS id, r.name, r.status
+                `SELECT r.id::TEXT AS id, r.name, r.status, r.max_players
                  FROM rooms r JOIN game_servers gs ON gs.id = r.server_id
                  WHERE gs.id = $1 AND gs.current_room_id = r.id
                    AND r.status IN ('waiting', 'playing')

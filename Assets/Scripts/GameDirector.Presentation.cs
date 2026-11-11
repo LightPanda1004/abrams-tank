@@ -1,12 +1,4 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
-using UnityEngine.SceneManagement;
-using Unity.Netcode;
-using Unity.Netcode.Transports.UTP;
-using UnityEngine.UI;
 
 public partial class GameDirector
 {
@@ -34,47 +26,12 @@ public partial class GameDirector
         if (!finishMenuVisible)
             DrawBattleHUD();
 
+        DrawOnlineRoomHud();
+
         if (finishMenuVisible)
             DrawGameOverMenu();
 
         DrawMissileView();
-    }
-
-    private Texture2D LoadMenuTexture(string resourcePath)
-    {
-        if (menuTextures.TryGetValue(
-            resourcePath,
-            out Texture2D cachedTexture))
-        {
-            return cachedTexture;
-        }
-
-        Texture2D texture = Resources.Load<Texture2D>(
-            "LeopardBattle/" + resourcePath
-        );
-        if (texture == null)
-        {
-            Debug.LogWarning(
-                "GameDirector: Could not load UI texture at " +
-                "Resources/LeopardBattle/" + resourcePath,
-                this
-            );
-        }
-
-        menuTextures.Add(resourcePath, texture);
-        return texture;
-    }
-
-    private void DrawMenuTexture(
-        string resourcePath,
-        Rect rect,
-        ScaleMode scaleMode = ScaleMode.StretchToFill)
-    {
-        Texture2D texture = LoadMenuTexture(resourcePath);
-        if (texture == null)
-            return;
-
-        GUI.DrawTexture(rect, texture, scaleMode, true);
     }
 
     private bool DrawMenuButton(
@@ -83,216 +40,6 @@ public partial class GameDirector
         GUIStyle style = null)
     {
         return GUI.Button(rect, label, style ?? buttonStyle);
-    }
-
-    private string GetMenuButtonSpriteGroup(string label)
-    {
-        if (ContainsIgnoreCase(label, "SINGLE PLAY") ||
-            ContainsIgnoreCase(label, "SINGLE PLAYER"))
-            return "SinglePlay";
-        if (ContainsIgnoreCase(label, "MULTIPLAYER") ||
-            ContainsIgnoreCase(label, "BLUE TEAM") ||
-            ContainsIgnoreCase(label, "RED TEAM"))
-            return "Multiplayer";
-        if (ContainsIgnoreCase(label, "CONTROL SETTINGS"))
-            return "ControlSettings";
-        if (ContainsIgnoreCase(label, "SETTINGS") ||
-            ContainsIgnoreCase(label, "RESOLUTION"))
-            return "Settings";
-        if (ContainsIgnoreCase(label, "CONTINUE"))
-            return "Multiplayer";
-        if (ContainsIgnoreCase(label, "RESUME") ||
-            ContainsIgnoreCase(label, "PLAY AGAIN"))
-            return "SinglePlay";
-        if (ContainsIgnoreCase(label, "EXIT"))
-            return "Exit";
-        if (ContainsIgnoreCase(label, "CREATE"))
-            return "CreateGame";
-        if (ContainsIgnoreCase(label, "JOIN") ||
-            ContainsIgnoreCase(label, "ROOM"))
-            return "JoinGame";
-        if (ContainsIgnoreCase(label, "REFRESH"))
-            return "Refresh";
-        if (ContainsIgnoreCase(label, "APPLY"))
-            return "Apply";
-        if (ContainsIgnoreCase(label, "BACK") ||
-            ContainsIgnoreCase(label, "MAIN MENU"))
-            return "Back";
-
-        return "Back";
-    }
-
-    private static bool ContainsIgnoreCase(string value, string search)
-    {
-        return value.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private void EnsureMenuButtonCanvas()
-    {
-        if (menuButtonSpritesInitialized)
-            return;
-
-        if (menuButtonCanvas == null)
-        {
-            Debug.LogError(
-                "GameDirector: Assign the menu button Canvas in the scene.",
-                this
-            );
-        }
-
-        menuButtonViews.Clear();
-        if (menuSceneButtons != null)
-        {
-            foreach (Button button in menuSceneButtons)
-            {
-                if (button == null)
-                {
-                    Debug.LogError(
-                        "GameDirector: Assign every menu button in the " +
-                        "scene button list.",
-                        this
-                    );
-                    continue;
-                }
-
-                Image image = button.GetComponent<Image>();
-                RectTransform rectTransform =
-                    button.transform as RectTransform;
-                if (image == null || rectTransform == null)
-                {
-                    Debug.LogError(
-                        "GameDirector: Each scene menu button must have an " +
-                        "Image and RectTransform.",
-                        button
-                    );
-                    continue;
-                }
-
-                MenuButtonView view = new MenuButtonView
-                {
-                    gameObject = button.gameObject,
-                    rectTransform = rectTransform,
-                    button = button,
-                    image = image
-                };
-                button.targetGraphic = image;
-                button.transition = Selectable.Transition.SpriteSwap;
-                button.navigation = new Navigation
-                {
-                    mode = Navigation.Mode.None
-                };
-                image.raycastTarget = true;
-                button.onClick.AddListener(() => view.wasClicked = true);
-                menuButtonViews.Add(view);
-            }
-        }
-        else
-        {
-            Debug.LogError(
-                "GameDirector: Assign scene menu buttons in the Inspector.",
-                this
-            );
-        }
-
-        menuButtonSpriteSets.Clear();
-        if (menuButtonSprites != null)
-        {
-            foreach (Sprite sprite in menuButtonSprites)
-            {
-                if (sprite == null)
-                    continue;
-
-                string spriteName = sprite.name;
-                int suffixStart = spriteName.LastIndexOf('_');
-                if (suffixStart < 0 || suffixStart == spriteName.Length - 1)
-                    continue;
-
-                string state = spriteName.Substring(suffixStart + 1);
-                string groupName = spriteName.Substring(0, suffixStart);
-                if (groupName.EndsWith(
-                    "btn",
-                    System.StringComparison.OrdinalIgnoreCase))
-                {
-                    groupName = groupName.Substring(0, groupName.Length - 3);
-                }
-
-                if (!menuButtonSpriteSets.TryGetValue(
-                    groupName,
-                    out MenuButtonSpriteSet spriteSet))
-                {
-                    spriteSet = new MenuButtonSpriteSet();
-                    menuButtonSpriteSets.Add(groupName, spriteSet);
-                }
-
-                if (state.Equals(
-                    "normal",
-                    System.StringComparison.OrdinalIgnoreCase))
-                    spriteSet.normal = sprite;
-                else if (state.Equals(
-                    "hover",
-                    System.StringComparison.OrdinalIgnoreCase))
-                    spriteSet.hover = sprite;
-                else if (state.Equals(
-                    "select",
-                    System.StringComparison.OrdinalIgnoreCase))
-                    spriteSet.hover = sprite;
-                else if (state.Equals(
-                    "press",
-                    System.StringComparison.OrdinalIgnoreCase))
-                    spriteSet.pressed = sprite;
-            }
-        }
-
-        foreach (KeyValuePair<string, MenuButtonSpriteSet> entry
-            in menuButtonSpriteSets)
-        {
-            if (entry.Value.normal == null ||
-                entry.Value.hover == null ||
-                entry.Value.pressed == null)
-            {
-                Debug.LogWarning(
-                    "GameDirector: ButtonGroup sprite set " + entry.Key +
-                    " does not contain normal, hover, and press sprites.",
-                    this
-                );
-            }
-        }
-
-        menuButtonSpritesInitialized = true;
-    }
-
-    private MenuButtonView GetMenuButtonView(int index)
-    {
-        if (index >= menuButtonViews.Count)
-        {
-            if (!menuButtonCapacityWarningLogged)
-            {
-                Debug.LogError(
-                    "GameDirector: The scene does not contain enough menu " +
-                    "buttons for the current menu.",
-                    this
-                );
-                menuButtonCapacityWarningLogged = true;
-            }
-            return null;
-        }
-
-        return menuButtonViews[index];
-    }
-
-    private void HideUnusedMenuButtons()
-    {
-        for (int i = menuButtonDrawIndex; i < menuButtonViews.Count; i++)
-            menuButtonViews[i].gameObject.SetActive(false);
-
-        if (menuButtonDrawIndex == 0 && menuButtonCanvas != null)
-            menuButtonCanvas.enabled = false;
-    }
-
-    private void HideMenuButtons()
-    {
-        menuButtonDrawIndex = 0;
-        HideUnusedMenuButtons();
     }
 
     private Rect GetMenuPanelRect(float layoutWidth, float layoutHeight)
@@ -324,104 +71,6 @@ public partial class GameDirector
             new Rect(panel.x + 30f, panel.y + 20f, panel.width - 60f, 48f),
             title,
             menuTitleStyle
-        );
-    }
-
-    private void EnsureMenuPanelCanvas()
-    {
-        if (menuPanelCanvas != null)
-            return;
-
-        if (!menuPanelMissingSpriteWarningLogged)
-        {
-            Debug.LogError(
-                "GameDirector: Assign the menu panel Canvas and Image " +
-                "in the scene.",
-                this
-            );
-            menuPanelMissingSpriteWarningLogged = true;
-        }
-    }
-
-    private void HideMenuPanelCanvas()
-    {
-        if (menuPanelCanvas != null)
-            menuPanelCanvas.enabled = false;
-    }
-
-    private void HideLegacyMenuPanelGraphics()
-    {
-        if (menuPanelImage != null)
-            menuPanelImage.enabled = false;
-        if (menuBackgroundImage != null)
-            menuBackgroundImage.enabled = false;
-    }
-
-    private void ShowMenuPanelCanvas(Rect panel, Sprite panelSprite)
-    {
-        if (panelSprite == null)
-        {
-            HideMenuPanelCanvas();
-            if (!menuPanelMissingSpriteWarningLogged)
-            {
-                Debug.LogWarning(
-                    "GameDirector: Assign a menu panel sprite before " +
-                    "displaying the menu.",
-                    this
-                );
-                menuPanelMissingSpriteWarningLogged = true;
-            }
-            return;
-        }
-
-        if (menuBackgroundImage == null || menuBackgroundImage.sprite == null)
-        {
-            if (!menuBackgroundMissingSpriteWarningLogged)
-            {
-                Debug.LogWarning(
-                    "GameDirector: Assign a menu background sprite in the " +
-                    "scene.",
-                    this
-                );
-                menuBackgroundMissingSpriteWarningLogged = true;
-            }
-        }
-        else
-        {
-            menuBackgroundImage.enabled = true;
-            if (menuBackgroundImage.transform.GetSiblingIndex() != 0)
-                menuBackgroundImage.transform.SetAsFirstSibling();
-        }
-
-        EnsureMenuPanelCanvas();
-        if (menuPanelCanvas == null ||
-            menuPanelImage == null ||
-            menuPanelRectTransform == null)
-        {
-            return;
-        }
-
-        menuPanelCanvas.enabled = true;
-        menuPanelImage.enabled = true;
-        menuPanelImage.sprite = panelSprite;
-
-        RectTransform canvasRectTransform =
-            menuPanelCanvas.GetComponent<RectTransform>();
-        float scaleX = canvasRectTransform.rect.width /
-            Mathf.Max(Screen.width, 1f);
-        float scaleY = canvasRectTransform.rect.height /
-            Mathf.Max(Screen.height, 1f);
-
-        menuPanelRectTransform.anchorMin = new Vector2(0f, 1f);
-        menuPanelRectTransform.anchorMax = new Vector2(0f, 1f);
-        menuPanelRectTransform.pivot = new Vector2(0f, 1f);
-        menuPanelRectTransform.anchoredPosition = new Vector2(
-            panel.x * scaleX,
-            -panel.y * scaleY
-        );
-        menuPanelRectTransform.sizeDelta = new Vector2(
-            panel.width * scaleX,
-            panel.height * scaleY
         );
     }
 
@@ -465,31 +114,31 @@ public partial class GameDirector
 
     private void DrawMainMenu()
     {
-        float layoutWidth = showEconomyMenu
+        float layoutWidth = showRoomMenu
+            ? 640f
+            : showEconomyMenu
             ? 860f
             : showOnlineMenu ? 640f : 420f;
-        float layoutHeight = showEconomyMenu
+        float layoutHeight = showRoomMenu
+            ? 720f
+            : showEconomyMenu
             ? 830f
             : showOnlineMenu
             ? string.IsNullOrEmpty(onlineAuthToken) ? 430f
-                :                 string.IsNullOrEmpty(onlineWalletAddress) ? 1100f : 860f
-            : showMultiplayerMenu
-                ? MultiplayerMenuLayoutHeight
-                : showSettings || showControlSettings
-                    ? 440f
-                    : 470f;
+                : string.IsNullOrEmpty(onlineWalletAddress) ? 600f : 470f
+            : showSettings || showControlSettings ? 440f : 470f;
         Rect panel = GetMenuPanelRect(layoutWidth, layoutHeight);
         float width = panel.width;
         float height = panel.height;
         float x = panel.x;
         float y = panel.y;
 
-        string title = showEconomyMenu
+        string title = showRoomMenu
+            ? "ONLINE ROOMS"
+            : showEconomyMenu
             ? "TCOIN ECONOMY"
-            : showMultiplayerMenu
-            ? showJoinRoomMenu ? "JOIN ROOM" : "MULTIPLAYER"
             : showOnlineMenu
-                ? "ONLINE BATTLE"
+                ? "ACCOUNT & WALLET"
             : showControlSettings
                 ? "CONTROL SETTINGS"
                 : showSettings ? "SETTINGS" : "LEOPARD BATTLE";
@@ -504,16 +153,16 @@ public partial class GameDirector
             new Vector3(scaleX, scaleY, 1f)
         );
 
-        if (showEconomyMenu)
+        if (showRoomMenu)
         {
-            DrawWalletEconomyMenu(x, y, layoutWidth);
+            DrawOnlineRoomMenu(x, y, layoutWidth);
             GUI.matrix = previousMatrix;
             return;
         }
 
-        if (showMultiplayerMenu)
+        if (showEconomyMenu)
         {
-            DrawMultiplayerMenu(x, y, layoutWidth);
+            DrawWalletEconomyMenu(x, y, layoutWidth);
             GUI.matrix = previousMatrix;
             return;
         }
@@ -544,29 +193,19 @@ public partial class GameDirector
             "SINGLE PLAY",
             buttonStyle))
         {
-            StartGame(GameMode.SinglePlay);
+            StartGame();
         }
 
         if (DrawMenuButton(
             new Rect(x + 50, y + 150, layoutWidth - 100, 48),
-            "MULTIPLAYER",
-            buttonStyle))
-        {
-            showMultiplayerMenu = true;
-            showJoinRoomMenu = false;
-            selectedTeam = TankTeam.Unassigned;
-        }
-
-        if (DrawMenuButton(
-            new Rect(x + 50, y + 210, layoutWidth - 100, 48),
-            "ONLINE BATTLE",
+            "ACCOUNT & WALLET",
             buttonStyle))
         {
             OpenOnlineMenu();
         }
 
         if (DrawMenuButton(
-            new Rect(x + 50, y + 270, layoutWidth - 100, 48),
+            new Rect(x + 50, y + 210, layoutWidth - 100, 48),
             "SETTINGS",
             buttonStyle))
         {
@@ -574,7 +213,7 @@ public partial class GameDirector
         }
 
         if (DrawMenuButton(
-            new Rect(x + 50, y + 330, layoutWidth - 100, 48),
+            new Rect(x + 50, y + 270, layoutWidth - 100, 48),
             "EXIT",
             buttonStyle))
         {
@@ -585,9 +224,6 @@ public partial class GameDirector
 
     private void DrawOnlineMenu(float x, float y, float width)
     {
-        float walletOffset = string.IsNullOrEmpty(onlineWalletAddress)
-            ? 340f
-            : 160f;
         GUI.Label(
             new Rect(x + 42f, y + 86f, width - 84f, 24f),
             onlineStatusMessage,
@@ -675,26 +311,15 @@ public partial class GameDirector
             return;
         }
 
-        GUI.Label(
-            new Rect(x + 42f, y + 175f, width - 84f, 22f),
-            "PLAYER NAME",
-            statsStyle
-        );
-        onlinePlayerNameInput = GUI.TextField(
-            new Rect(x + 42f, y + 199f, width - 84f, 36f),
-            onlinePlayerNameInput,
-            24,
-            menuInputStyle
-        );
         if (string.IsNullOrEmpty(onlineWalletAddress))
         {
             GUI.Label(
-                new Rect(x + 42f, y + 243f, width - 84f, 22f),
+                new Rect(x + 42f, y + 175f, width - 84f, 22f),
                 "REWARD WALLET ADDRESS",
                 statsStyle
             );
             onlineWalletAddressInput = GUI.TextField(
-                new Rect(x + 42f, y + 267f, width - 84f, 36f),
+                new Rect(x + 42f, y + 199f, width - 84f, 36f),
                 onlineWalletAddressInput,
                 42,
                 menuInputStyle
@@ -704,14 +329,14 @@ public partial class GameDirector
             float walletButtonWidth = (width - 100f) * 0.5f;
             GUI.enabled = walletKitReady;
             if (DrawMenuButton(
-                new Rect(x + 42f, y + 309f, walletButtonWidth, 32f),
+                new Rect(x + 42f, y + 241f, walletButtonWidth, 32f),
                 WalletConnectButtonLabel(),
                 buttonStyle))
                 ConnectOnlineWallet();
 
             GUI.enabled = walletKitReady;
             if (DrawMenuButton(
-                new Rect(x + 58f + walletButtonWidth, y + 309f,
+                new Rect(x + 58f + walletButtonWidth, y + 241f,
                     walletButtonWidth, 32f),
                 WalletSearchButtonLabel(),
                 buttonStyle))
@@ -721,7 +346,7 @@ public partial class GameDirector
 #if UNITY_WEBGL && !UNITY_EDITOR
             const float manualWalletOffset = 24f;
             GUI.Label(
-                new Rect(x + 42f, y + 338f, width - 84f, 22f),
+                new Rect(x + 42f, y + 270f, width - 84f, 22f),
                 "Chrome + MetaMask extension works without a phone.",
                 statsStyle
             );
@@ -731,7 +356,7 @@ public partial class GameDirector
             GUI.Label(
                 new Rect(
                     x + 42f,
-                    y + 345f + manualWalletOffset,
+                    y + 277f + manualWalletOffset,
                     width - 84f,
                     22f
                 ),
@@ -743,7 +368,7 @@ public partial class GameDirector
             if (DrawMenuButton(
                 new Rect(
                     x + 42f,
-                    y + 369f + manualWalletOffset,
+                    y + 301f + manualWalletOffset,
                     width - 84f,
                     30f
                 ),
@@ -755,7 +380,7 @@ public partial class GameDirector
             GUI.Label(
                 new Rect(
                     x + 42f,
-                    y + 403f + manualWalletOffset,
+                    y + 335f + manualWalletOffset,
                     width - 84f,
                     22f
                 ),
@@ -765,7 +390,7 @@ public partial class GameDirector
             onlineWalletSignatureInput = GUI.TextField(
                 new Rect(
                     x + 42f,
-                    y + 427f + manualWalletOffset,
+                    y + 359f + manualWalletOffset,
                     width - 84f,
                     36f
                 ),
@@ -779,7 +404,7 @@ public partial class GameDirector
             if (DrawMenuButton(
                 new Rect(
                     x + 42f,
-                    y + 469f + manualWalletOffset,
+                    y + 401f + manualWalletOffset,
                     width - 84f,
                     34f
                 ),
@@ -791,121 +416,25 @@ public partial class GameDirector
         else
         {
             GUI.Label(
-                new Rect(x + 42f, y + 243f, width - 84f, 22f),
+                new Rect(x + 42f, y + 175f, width - 84f, 22f),
                 "VERIFIED REWARD WALLET",
                 statsStyle
             );
             GUI.Label(
-                new Rect(x + 42f, y + 267f, width - 84f, 38f),
+                new Rect(x + 42f, y + 199f, width - 84f, 38f),
                 onlineWalletAddress,
                 statsStyle
             );
             GUI.Label(
-                new Rect(x + 42f, y + 305f, width - 84f, 22f),
+                new Rect(x + 42f, y + 237f, width - 84f, 22f),
                 "This wallet is permanently linked to this account.",
                 statsStyle
             );
         }
 
-        GUI.Label(
-            new Rect(x + 42f, y + 183f + walletOffset,
-                width - 84f, 22f),
-            "SELECT YOUR TEAM",
-            statsStyle
-        );
-        float teamButtonWidth = (width - 100f) * 0.5f;
         if (DrawMenuButton(
-            new Rect(x + 42f, y + 207f + walletOffset,
-                teamButtonWidth, 38f),
-            "BLUE TEAM",
-            selectedTeam == TankTeam.Blue
-                ? selectedButtonStyle
-                : buttonStyle))
-            selectedTeam = TankTeam.Blue;
-        if (DrawMenuButton(
-            new Rect(x + 58f + teamButtonWidth, y + 207f + walletOffset,
-                teamButtonWidth, 38f),
-            "RED TEAM",
-            selectedTeam == TankTeam.Red
-                ? selectedButtonStyle
-                : buttonStyle))
-            selectedTeam = TankTeam.Red;
-
-        GUI.Label(
-            new Rect(x + 42f, y + 253f + walletOffset,
-                width - 84f, 22f),
-            "ROOM NAME",
-            statsStyle
-        );
-        onlineRoomNameInput = GUI.TextField(
-            new Rect(x + 42f, y + 277f + walletOffset,
-                width - 84f, 36f),
-            onlineRoomNameInput,
-            32,
-            menuInputStyle
-        );
-
-        bool previousControlsEnabled = GUI.enabled;
-        GUI.enabled = !onlineRequestInProgress &&
-            selectedTeam != TankTeam.Unassigned &&
-            !string.IsNullOrWhiteSpace(onlinePlayerNameInput);
-        float actionWidth = (width - 100f) * 0.5f;
-        if (DrawMenuButton(
-            new Rect(x + 42f, y + 322f + walletOffset, actionWidth, 40f),
-            "CREATE ROOM",
-            buttonStyle))
-            CreateOnlineRoom();
-        GUI.enabled = !onlineRequestInProgress;
-        if (DrawMenuButton(
-            new Rect(x + 58f + actionWidth, y + 322f + walletOffset,
-                actionWidth, 40f),
-            "REFRESH ROOMS",
-            buttonStyle))
-            StartCoroutine(RefreshOnlineRooms());
-        GUI.enabled = previousControlsEnabled;
-
-        Rect listRect = new Rect(
-            x + 42f,
-            y + 374f + walletOffset,
-            width - 84f,
-            205f
-        );
-        float contentHeight = Mathf.Max(205f, onlineRooms.Count * 48f);
-        roomListScroll = GUI.BeginScrollView(
-            listRect,
-            roomListScroll,
-            new Rect(0f, 0f, listRect.width - 18f, contentHeight)
-        );
-        for (int i = 0; i < onlineRooms.Count; i++)
-        {
-            OnlineRoomInfo room = onlineRooms[i];
-            Rect row = new Rect(
-                0f,
-                i * 48f,
-                listRect.width - 18f,
-                42f
-            );
-            string label = room.name + "   " +
-                room.player_count + "/" + room.max_players;
-            GUI.enabled = !onlineRequestInProgress &&
-                room.player_count < room.max_players;
-            if (DrawMenuButton(row, label, buttonStyle))
-                JoinOnlineRoom(room);
-        }
-        GUI.enabled = previousControlsEnabled;
-        GUI.EndScrollView();
-        if (onlineRooms.Count == 0)
-        {
-            GUI.Label(
-                new Rect(x + 52f, y + 438f + walletOffset,
-                    width - 104f, 24f),
-                "No online rooms are available.",
-                statsStyle
-            );
-        }
-
-        if (DrawMenuButton(
-            new Rect(x + 42f, y + 590f + walletOffset,
+            new Rect(x + 42f, y +
+                (string.IsNullOrEmpty(onlineWalletAddress) ? 454f : 285f),
                 width - 84f, 36f),
             "OPEN TCOIN ECONOMY",
             buttonStyle))
@@ -913,8 +442,11 @@ public partial class GameDirector
             showEconomyMenu = true;
             StartCoroutine(CheckConfiguredContracts());
         }
+        float actionWidth = (width - 100f) * 0.5f;
+        float accountActionsY =
+            string.IsNullOrEmpty(onlineWalletAddress) ? 498f : 329f;
         if (DrawMenuButton(
-            new Rect(x + 42f, y + 634f + walletOffset,
+            new Rect(x + 42f, y + accountActionsY,
                 actionWidth, 36f),
             "SIGN OUT",
             buttonStyle))
@@ -927,17 +459,25 @@ public partial class GameDirector
             onlineWalletChallengeMessage = "";
             onlineWalletChallengeNonce = "";
             onlineProfile = null;
-            onlineRooms.Clear();
             onlineStatusMessage = "Signed out.";
         }
         if (DrawMenuButton(
-            new Rect(x + 58f + actionWidth, y + 634f + walletOffset,
+            new Rect(x + 58f + actionWidth, y + accountActionsY,
                 actionWidth, 36f),
             "BACK",
             buttonStyle))
         {
             showOnlineMenu = false;
             onlineStatusMessage = "";
+        }
+
+        if (DrawMenuButton(
+            new Rect(x + 42f, y + accountActionsY + 44f,
+                width - 84f, 36f),
+            "PLAY ONLINE",
+            buttonStyle))
+        {
+            OpenOnlineRooms();
         }
     }
 
@@ -1157,181 +697,6 @@ public partial class GameDirector
         }
         return summary;
     }
-
-    private void DrawMultiplayerMenu(float x, float y, float width)
-    {
-        if (showJoinRoomMenu)
-        {
-            GUI.Label(
-                new Rect(x + 34f, y + 150f, width - 68f, 24f),
-                roomStatusMessage,
-                statsStyle
-            );
-
-            Rect listRect = new Rect(x + 28f, y + 180f, width - 56f, 256f);
-            float contentHeight = Mathf.Max(
-                256f,
-                lanRoomDiscovery != null
-                    ? lanRoomDiscovery.Rooms.Count * 80f
-                    : 256f
-            );
-
-            roomListScroll = GUI.BeginScrollView(
-                listRect,
-                roomListScroll,
-                new Rect(0f, 0f, listRect.width - 18f, contentHeight)
-            );
-
-            if (lanRoomDiscovery != null)
-            {
-                for (int i = 0; i < lanRoomDiscovery.Rooms.Count; i++)
-                {
-                    LanRoomInfo room = lanRoomDiscovery.Rooms[i];
-                    Rect row = new Rect(
-                        0f,
-                        i * 80f,
-                        listRect.width - 18f,
-                        70f
-                    );
-                    string label = room.roomName + "   " +
-                        room.playerCount + "/" + room.maxPlayers +
-                        "   " + room.address;
-
-                    if (DrawMenuButton(row, label, buttonStyle))
-                        JoinLanRoom(room);
-                }
-            }
-
-            GUI.EndScrollView();
-
-            if (lanRoomDiscovery == null ||
-                lanRoomDiscovery.Rooms.Count == 0)
-            {
-                GUI.Label(
-                    new Rect(x + 40f, y + 239f, width - 80f, 50f),
-                    "No rooms found on this LAN yet.",
-                    statsStyle
-                );
-            }
-
-            if (DrawMenuButton(
-                new Rect(x + 50f, y + 446f, width - 100f, 42f),
-                "REFRESH",
-                buttonStyle))
-            {
-                if (lanRoomDiscovery != null)
-                    lanRoomDiscovery.StartSearching();
-                roomStatusMessage = "Searching local network...";
-            }
-            if (DrawMenuButton(
-                new Rect(x + 50f, y + 500f, width - 100f, 42f),
-                "BACK",
-                buttonStyle))
-            {
-                showJoinRoomMenu = false;
-                roomStatusMessage = "";
-
-                if (lanRoomDiscovery != null)
-                    lanRoomDiscovery.StopSearching();
-            }
-
-            return;
-        }
-
-        GUI.Label(
-            new Rect(x + 40f, y + 150f, width - 80f, 24f),
-            "PLAYER NAME",
-            statsStyle
-        );
-        playerNameInput = GUI.TextField(
-            new Rect(x + 40f, y + 174f, width - 80f, 34f),
-            playerNameInput,
-            32,
-            menuInputStyle
-        );
-
-        GUI.Label(
-            new Rect(x + 40f, y + 212f, width - 80f, 24f),
-            "SELECT YOUR TEAM",
-            statsStyle
-        );
-        if (DrawMenuButton(
-            new Rect(x + 50f, y + 236f, width - 100f, 44f),
-            "BLUE TEAM",
-            selectedTeam == TankTeam.Blue
-                ? selectedButtonStyle
-                : buttonStyle))
-        {
-            selectedTeam = TankTeam.Blue;
-        }
-        if (DrawMenuButton(
-            new Rect(x + 50f, y + 287f, width - 100f, 44f),
-            "RED TEAM",
-            selectedTeam == TankTeam.Red
-                ? selectedButtonStyle
-                : buttonStyle))
-        {
-            selectedTeam = TankTeam.Red;
-        }
-
-        GUI.Label(
-            new Rect(x + 40f, y + 338f, width - 80f, 24f),
-            "ROOM NAME",
-            statsStyle
-        );
-        roomNameInput = GUI.TextField(
-            new Rect(x + 40f, y + 362f, width - 80f, 34f),
-            roomNameInput,
-            24,
-            menuInputStyle
-        );
-        GUI.Label(
-            new Rect(x + 40f, y + 398f, width - 80f, 28f),
-            roomStatusMessage,
-            statsStyle
-        );
-
-        bool canUseMultiplayer = selectedTeam != TankTeam.Unassigned &&
-            !string.IsNullOrWhiteSpace(playerNameInput);
-        bool previousEnabled = GUI.enabled;
-        GUI.enabled = canUseMultiplayer;
-        if (DrawMenuButton(
-            new Rect(x + 50f, y + 430f, width - 100f, 44f),
-            "CREATE GAME",
-            buttonStyle))
-        {
-            CreateLanRoom();
-        }
-
-        if (DrawMenuButton(
-            new Rect(x + 50f, y + 480f, width - 100f, 44f),
-            "JOIN ROOM",
-            buttonStyle))
-        {
-            if (canUseMultiplayer)
-            {
-                showJoinRoomMenu = true;
-                roomStatusMessage = "Searching local network...";
-                if (lanRoomDiscovery != null)
-                    lanRoomDiscovery.StartSearching();
-            }
-        }
-        GUI.enabled = previousEnabled;
-
-        if (DrawMenuButton(
-            new Rect(x + 50f, y + 534f, width - 100f, 38f),
-            "BACK",
-            buttonStyle))
-        {
-            showMultiplayerMenu = false;
-            selectedTeam = TankTeam.Unassigned;
-            roomStatusMessage = "";
-        }
-    }
-
-    // --------------------------------------------------
-    // PAUSE MENU
-    // --------------------------------------------------
 
     private void DrawPauseMenu()
     {
@@ -1593,11 +958,9 @@ public partial class GameDirector
         float x = screenWidth - panelWidth - margin;
         float y = margin;
         float inset = 12f;
-        bool multiplayer = IsMultiplayerMode;
-        float layoutOffset = multiplayer ? 42f : 0f;
 
         GUI.Box(
-            new Rect(x, y, panelWidth, multiplayer ? 280f : 238f),
+            new Rect(x, y, panelWidth, 238f),
             "",
             hudPanelStyle
         );
@@ -1605,110 +968,32 @@ public partial class GameDirector
         Rect totalCard = new Rect(x + inset, y + 12f, countWidth, 48f);
         Rect destroyedCard = new Rect(
             totalCard.xMax + 8f, totalCard.y, countWidth, 48f);
-        if (multiplayer)
-        {
-            Rect enemyDestroyedCard = new Rect(
-                x + inset, y + 12f, panelWidth - inset * 2f, 48f);
-            int enemyTanksDestroyed = LocalPlayerEnemyTanksDestroyed;
-            GUI.Box(enemyDestroyedCard, "", hudBarBackgroundStyle);
-            GUI.Label(
-                new Rect(enemyDestroyedCard.x + 8f,
-                    enemyDestroyedCard.y + 3f,
-                    enemyDestroyedCard.width - 16f, 16f),
-                "ENEMY TANKS DESTROYED",
-                statsStyle);
-            GUI.Label(
-                new Rect(enemyDestroyedCard.x + 8f,
-                    enemyDestroyedCard.y + 19f,
-                    enemyDestroyedCard.width - 16f, 25f),
-                enemyTanksDestroyed.ToString(),
-                hudValueStyle);
-
-            GetMultiplayerTeamTankCounts(
-                out int blueTanksRemaining,
-                out int redTanksRemaining
-            );
-            Rect blueTeamCard = new Rect(
-                x + inset, y + 66f, countWidth, 36f);
-            Rect redTeamCard = new Rect(
-                blueTeamCard.xMax + 8f, blueTeamCard.y,
-                countWidth, 36f);
-            GUI.Box(blueTeamCard, "", hudBarBackgroundStyle);
-            GUI.Box(redTeamCard, "", hudBarBackgroundStyle);
-            GUI.Label(
-                new Rect(blueTeamCard.x + 6f, blueTeamCard.y + 1f,
-                    countWidth - 12f, 15f),
-                "BLUE TANKS LEFT",
-                statsStyle);
-            GUI.Label(
-                new Rect(redTeamCard.x + 6f, redTeamCard.y + 1f,
-                    countWidth - 12f, 15f),
-                "RED TANKS LEFT",
-                statsStyle);
-            Color previousGuiColor = GUI.color;
-            GUI.color = new Color(0.35f, 0.65f, 1f, 1f);
-            GUI.Label(
-                new Rect(blueTeamCard.x + 6f, blueTeamCard.y + 15f,
-                    countWidth - 12f, 20f),
-                blueTanksRemaining.ToString(),
-                hudValueStyle);
-            GUI.color = new Color(1f, 0.4f, 0.35f, 1f);
-            GUI.Label(
-                new Rect(redTeamCard.x + 6f, redTeamCard.y + 15f,
-                    countWidth - 12f, 20f),
-                redTanksRemaining.ToString(),
-                hudValueStyle);
-            GUI.color = previousGuiColor;
-        }
-        else
-        {
-            GUI.Box(totalCard, "", hudBarBackgroundStyle);
-            GUI.Box(destroyedCard, "", hudBarBackgroundStyle);
-            GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 3f, countWidth - 16f, 16f), "AI TANKS", statsStyle);
-            GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 19f, countWidth - 16f, 25f), totalAITanks.ToString(), hudValueStyle);
-            GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 3f, countWidth - 16f, 16f), "DESTROYED", statsStyle);
-            GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 19f, countWidth - 16f, 25f), destroyedTanks.ToString(), hudValueStyle);
-        }
+        GUI.Box(totalCard, "", hudBarBackgroundStyle);
+        GUI.Box(destroyedCard, "", hudBarBackgroundStyle);
+        GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 3f, countWidth - 16f, 16f), "AI TANKS", statsStyle);
+        GUI.Label(new Rect(totalCard.x + 8f, totalCard.y + 19f, countWidth - 16f, 25f), totalAITanks.ToString(), hudValueStyle);
+        GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 3f, countWidth - 16f, 16f), "DESTROYED", statsStyle);
+        GUI.Label(new Rect(destroyedCard.x + 8f, destroyedCard.y + 19f, countWidth - 16f, 25f), destroyedTanks.ToString(), hudValueStyle);
 
         GUI.Label(
-            new Rect(x + inset, y + 66f + layoutOffset,
+            new Rect(x + inset, y + 66f,
                 panelWidth - inset * 2f, 18f),
             "WEAPON COOLDOWN",
             statsStyle);
-        float meterY = y + 120f + layoutOffset;
+        float meterY = y + 120f;
         float leftCenterX = x + panelWidth * 0.30f;
         float rightCenterX = x + panelWidth * 0.70f;
 
-        string missileValue;
-        float missileProgress;
-        if (multiplayer)
-        {
-            missileValue = playerAntiDetectLauncher == null
-                ? "N/A"
-                : playerAntiDetectLauncher.AmmoRemaining <= 0
+        string missileValue = playerMissileLauncher == null
+            ? "N/A"
+            : playerMissileLauncher.IsReloading
+                ? playerMissileLauncher.RemainingReload.ToString("0.0") + "s"
+                : playerMissileLauncher.AmmoRemaining <= 0
                     ? "EMPTY"
-                    : playerAntiDetectLauncher.IsReloading
-                        ? playerAntiDetectLauncher.AmmoRemaining + " | " +
-                          playerAntiDetectLauncher.RemainingReload
-                              .ToString("0.0") + "s"
-                        : playerAntiDetectLauncher.AmmoRemaining + " READY";
-            missileProgress = playerAntiDetectLauncher != null
-                ? playerAntiDetectLauncher.ReloadProgress
-                : 1f;
-        }
-        else
-        {
-            missileValue = playerMissileLauncher == null
-                ? "N/A"
-                : playerMissileLauncher.IsReloading
-                    ? playerMissileLauncher.RemainingReload.ToString("0.0") + "s"
-                    : playerMissileLauncher.AmmoRemaining <= 0
-                        ? "EMPTY"
-                        : "READY";
-            missileProgress = playerMissileLauncher != null
-                ? playerMissileLauncher.ReloadProgress
-                : 1f;
-        }
+                    : "READY";
+        float missileProgress = playerMissileLauncher != null
+            ? playerMissileLauncher.ReloadProgress
+            : 1f;
 
         string shellValue = playerTankFire == null
             ? "N/A"
@@ -1736,7 +1021,7 @@ public partial class GameDirector
         int speedKph = Mathf.RoundToInt(speed * 3.6f);
 
         Rect speedCard = new Rect(
-            x + inset, y + 177f + layoutOffset,
+            x + inset, y + 177f,
             panelWidth - inset * 2f, 49f);
         GUI.Box(speedCard, "", hudBarBackgroundStyle);
         GUI.Label(new Rect(speedCard.x + 8f, speedCard.y + 3f, speedCard.width - 16f, 17f), "TANK SPEED", statsStyle);
@@ -1787,38 +1072,6 @@ public partial class GameDirector
                 healthBar.height - 4f),
             "",
             hudBarFillStyle);
-    }
-
-    private void GetMultiplayerTeamTankCounts(
-        out int blueTanksRemaining,
-        out int redTanksRemaining)
-    {
-        blueTanksRemaining = 0;
-        redTanksRemaining = 0;
-
-        NetworkManager manager = NetworkManager.Singleton;
-        if (manager == null || !manager.IsListening)
-            return;
-
-        foreach (NetworkObject networkObject in
-                 manager.SpawnManager.SpawnedObjects.Values)
-        {
-            NetworkTankPlayer player =
-                networkObject.GetComponent<NetworkTankPlayer>();
-            TankHealth health =
-                networkObject.GetComponent<TankHealth>();
-            if (player == null || health == null ||
-                !player.HasTeam || health.IsDestroyed ||
-                health.CurrentHealth <= 0f)
-            {
-                continue;
-            }
-
-            if (player.Team == TankTeam.Blue)
-                blueTanksRemaining++;
-            else if (player.Team == TankTeam.Red)
-                redTanksRemaining++;
-        }
     }
 
     private void DrawRadialMeter(
@@ -1958,7 +1211,6 @@ public partial class GameDirector
 
     private void DrawGameOverMenu()
     {
-        bool multiplayer = IsMultiplayerMode;
         float layoutWidth = 380f;
         float layoutHeight = 320f;
         Rect panel = GetMenuPanelRect(layoutWidth, layoutHeight);
@@ -1978,14 +1230,10 @@ public partial class GameDirector
             new Vector3(scaleX, scaleY, 1f)
         );
 
-        string destroyedCount = multiplayer
-            ? LocalPlayerEnemyTanksDestroyed.ToString()
-            : destroyedTanks + " / " + totalAITanks;
+        string destroyedCount = destroyedTanks + " / " + totalAITanks;
         GUI.Label(
             new Rect(x + 20, y + 85, layoutWidth - 40, 30),
-            multiplayer
-                ? "TANKS DESTROYED: " + destroyedCount
-                : "Destroyed AI Tanks: " + destroyedCount,
+            "Destroyed AI Tanks: " + destroyedCount,
             statsStyle
         );
 
@@ -2029,12 +1277,6 @@ public partial class GameDirector
         statsStyle.normal.textColor = new Color(0.88f, 0.9f, 0.91f, 1f);
         statsStyle.alignment = TextAnchor.MiddleLeft;
 
-        titleStyle = new GUIStyle(GUI.skin.label);
-        titleStyle.fontSize = 30;
-        titleStyle.fontStyle = FontStyle.Bold;
-        titleStyle.alignment = TextAnchor.MiddleLeft;
-        titleStyle.normal.textColor = Color.white;
-
         menuPanelStyle = new GUIStyle(GUI.skin.box);
         menuPanelStyle.normal.background = CreateMenuSurfaceTexture(
             96,
@@ -2054,18 +1296,6 @@ public partial class GameDirector
         menuTitleStyle.alignment = TextAnchor.MiddleLeft;
         menuTitleStyle.normal.textColor = Color.white;
         menuTitleStyle.clipping = TextClipping.Clip;
-
-        menuSubtitleStyle = new GUIStyle(GUI.skin.label);
-        menuSubtitleStyle.fontSize = 13;
-        menuSubtitleStyle.fontStyle = FontStyle.Bold;
-        menuSubtitleStyle.alignment = TextAnchor.MiddleLeft;
-        menuSubtitleStyle.normal.textColor = new Color(0.66f, 0.79f, 0.91f);
-
-        menuCardTitleStyle = new GUIStyle(GUI.skin.label);
-        menuCardTitleStyle.fontSize = 19;
-        menuCardTitleStyle.fontStyle = FontStyle.Bold;
-        menuCardTitleStyle.alignment = TextAnchor.MiddleLeft;
-        menuCardTitleStyle.normal.textColor = Color.white;
 
         buttonStyle = new GUIStyle(GUI.skin.button);
         buttonStyle.fontSize = 17;
@@ -2284,6 +1514,8 @@ public partial class GameDirector
 
     private void OnDestroy()
     {
+        OnDestroyOnlineRoom();
+
         foreach (Texture2D texture in generatedGuiTextures)
         {
             if (texture != null)
@@ -2291,23 +1523,9 @@ public partial class GameDirector
         }
         generatedGuiTextures.Clear();
 
-        if (lanRoomDiscovery != null)
-        {
-            lanRoomDiscovery.StopSearching();
-            lanRoomDiscovery.StopAdvertising();
-        }
-
-        if (lanNetworkManager != null)
-        {
-            lanNetworkManager.OnClientConnectedCallback -= OnLanClientConnected;
-            lanNetworkManager.OnClientDisconnectCallback -= OnLanClientDisconnected;
-
-            if (lanNetworkManager.IsListening)
-                lanNetworkManager.Shutdown();
-        }
-
         if (Instance == this)
             Instance = null;
 
         Time.timeScale = 1f;
-    }}
+    }
+}

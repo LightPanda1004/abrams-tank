@@ -1,6 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
-using Unity.Netcode;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class TankDroneImpact : MonoBehaviour
@@ -23,11 +22,6 @@ public class TankDroneImpact : MonoBehaviour
         Mathf.Max(0f, explosionEffectDuration);
     public bool IsDeployed =>
         droneController != null && droneController.IsDeployed;
-    public NetworkTankPlayer NetworkPlayer =>
-        droneController != null
-            ? droneController.GetComponent<NetworkTankPlayer>()
-            : null;
-
     private void Awake()
     {
         droneBody = GetComponent<Rigidbody>();
@@ -54,21 +48,7 @@ public class TankDroneImpact : MonoBehaviour
         TankHealth hitTank =
             collision.collider.GetComponentInParent<TankHealth>();
         if (hitTank != null)
-        {
-            NetworkManager networkManager = NetworkManager.Singleton;
-            NetworkTankPlayer attackingPlayer =
-                droneController.GetComponent<NetworkTankPlayer>();
-
-            if (networkManager != null && networkManager.IsListening)
-            {
-                if (attackingPlayer != null)
-                    attackingPlayer.RequestDroneImpactDamage(hitTank);
-            }
-            else
-            {
-                hitTank.TakeDamage(100f, droneController.transform);
-            }
-        }
+            hitTank.TakeDamage(100f, droneController.transform);
 
         droneController.HandleDroneImpact(impactPoint, true);
     }

@@ -1,10 +1,10 @@
 # Abrams online service
 
-This Node.js service provides account registration/login, room discovery,
-room allocation, and one-time player join tickets. It uses PostgreSQL for
-persistent account and room data. It does not simulate or host tank gameplay:
-internet matches require separate Unity dedicated-server builds running the
-project's multiplayer scene and registering with this service.
+This project has two Node.js processes: the HTTP API for accounts, room
+allocation, and one-time join tickets; and an authoritative WebSocket game
+gateway for browser clients. PostgreSQL stores account and room data. The
+gateway currently runs a simple server-side tank-arena simulation; it does not
+run Unity physics or the local single-player scene.
 
 ## Run locally
 
@@ -16,7 +16,7 @@ Requirements: Node.js 20+ and PostgreSQL 14+.
    Local development allows HTTP origins on `localhost` and `127.0.0.1`.
    In production, set `ALLOWED_ORIGINS` to a comma-separated list of exact
    HTTPS game origins, for example `https://game.example.com`.
-3. Install and start the service:
+3. Install dependencies and start the HTTP API:
 
    ```sh
    npm install
@@ -51,15 +51,49 @@ and its sample game server is offline, so it demonstrates stored data without
 appearing as a joinable online room. Never use these credentials outside a
 local development database.
 
-## Dedicated game servers
+## WebSocket game gateway
 
-Each running Unity dedicated server registers its endpoint with
-`POST /api/server/register`, then sends periodic heartbeats. The service
-assigns an available server to a newly created room and returns its endpoint
-and one-time join ticket to the player. The server validates each
-ticket against `/api/server/tickets/validate` before approving a Netcode
-connection. Keep `SERVER_API_TOKEN` private and configure it only on trusted
-dedicated-server processes.
+Run one gateway process per concurrently hosted room. Each process registers
+with the API, polls for its room assignment, validates one-time player tickets,
+and sends authoritative snapshots at 20 Hz. A room supports up to 32 players.
+The gateway accepts browser WebSockets at `/game`; it authenticates each
+connection with the ticket sent as the first WebSocket message, not in the URL.
+
+Configure these values in the same `.env` used by the API:
+
+```dotenv
+ABRAMS_ONLINE_API_URL=http://127.0.0.1:3000
+ABRAMS_ONLINE_SERVER_ID=local-01
+ABRAMS_ONLINE_WS_PUBLIC_URL=ws://localhost:7777/game
+ABRAMS_ONLINE_WS_PORT=7777
+ABRAMS_ONLINE_MAX_PLAYERS=32
+```
+
+Keep `SERVER_API_TOKEN` identical for the API and gateway; never put it in the
+Unity client. For local development, the API permits localhost browser
+origins. In production, set `ALLOWED_ORIGINS` to the exact HTTPS game origin,
+publish a `wss://` URL, and terminate TLS either in the gateway (using
+`TLS_CERT_FILE` and `TLS_KEY_FILE`) or a reverse proxy that forwards WebSocket
+upgrades to the gateway's port. The WebSocket URL must end in `/game`.
+
+After starting the API with `npm start`, start the gateway in another process:
+
+```sh
+npm run start:game-ws-gateway
+```
+
+Set the Unity `GameDirector` **Online Service Url** field to the API's public
+HTTPS origin in the browser build (or `http://localhost:3000` for local tests).
+The game UI supports registration/login, room listing/creation, team selection,
+and joining. Browser clients require HTTPS/WSS in production; raw UDP is not
+used by this online flow. Use a distinct server ID and public WebSocket URL for
+each additional gateway process. The API assigns one active room to each
+gateway process.
+
+The current gateway is a Node.js simulation with simplified X/Z movement and
+server-side projectiles. It does not instantiate the Unity tank prefab or
+simulate the local scene's physics, drones, or equipment. Match-result and
+blockchain reward endpoints are not automatically invoked by this gateway.
 
 ### Blockchain battle rewards
 
@@ -96,27 +130,8 @@ destination directly from a game client. Set
 `ABRAMS_ONLINE_KILL_REWARD_WEI` in each dedicated server process to the
 positive integer reward per enemy tank destroyed.
 
-Build a Unity Linux dedicated-server player that includes the playable
-`DemoScene` and has `GameDirector.multiplayerTankPrefab` assigned. Run one
-process per available match server with these environment variables:
-
-```text
-ABRAMS_ONLINE_DEDICATED_SERVER=1
-ABRAMS_ONLINE_SERVER_ID=region-a-01
-ABRAMS_ONLINE_API_URL=https://api.example.com
-ABRAMS_ONLINE_SERVER_HOST=game-server-public-hostname
-ABRAMS_ONLINE_SERVER_PORT=7777
-SERVER_API_TOKEN=<same private value configured on the Node service>
-```
-
-Allow inbound UDP traffic on each game server's configured port. Set the
-Unity `GameDirector` **Online Service Url** field to the Node service's public
-HTTPS origin (for example, `https://api.example.com`) in the client build.
-The game's online button supports registration, login, room creation/listing,
-and joining; room creation reports an error while no dedicated server is
-registered and healthy.
-
 Do not expose this service or send passwords over plain HTTP on the public
 internet. Terminate HTTPS at a trusted reverse proxy and restrict the service
 and database with firewall rules. The Node service is the account/lobby
-backend; Unity dedicated-server builds still run the real-time game.
+and database with firewall rules. The API and game gateway are separate
+processes and should both be supervised and monitored in production.

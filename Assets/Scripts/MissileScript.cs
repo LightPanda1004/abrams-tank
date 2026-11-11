@@ -33,19 +33,12 @@ public class HomingMissile : MonoBehaviour
     private Rigidbody rb;
     private Camera missileViewCamera;
     private Transform target;
-    private NetworkTankPlayer networkTargetPlayer;
     private Transform ownerRoot;
-    private NetworkTankPlayer ownerNetworkPlayer;
     private Vector3 flightDirection = Vector3.up;
-    private Vector2 networkAimErrorDegrees;
-    private float networkAimErrorDistance;
-    private float networkHitDistance;
     private float boostTimer;
     private bool homing;
     private bool exploded;
     private bool droneImpact;
-    private bool networkedMissile;
-    private bool allowMissileCamera = true;
 
     void Awake()
     {
@@ -74,26 +67,12 @@ public class HomingMissile : MonoBehaviour
 
     void Start()
     {
-        if (missileViewCamera != null && GameDirector.Instance != null &&
-            (!networkedMissile || allowMissileCamera))
+        if (missileViewCamera != null && GameDirector.Instance != null)
             GameDirector.Instance.RegisterMissileViewCamera(missileViewCamera);
 
-        if (networkedMissile && target != null)
-        {
-            boostTimer = 0f;
-            homing = true;
-            flightDirection = (target.position - rb.position).normalized;
-            if (flightDirection.sqrMagnitude < 0.001f)
-                flightDirection = transform.forward;
-            rb.velocity = flightDirection * homingSpeed;
-            UpdateRotation(flightDirection);
-        }
-        else
-        {
-            boostTimer = boostDuration;
-            rb.velocity = Vector3.up * boostSpeed;
-            UpdateRotation(Vector3.up);
-        }
+        boostTimer = boostDuration;
+        rb.velocity = Vector3.up * boostSpeed;
+        UpdateRotation(Vector3.up);
 
         // Lifetime now triggers a smooth disappearance.
         StartCoroutine(LifetimeRoutine());
@@ -119,12 +98,6 @@ public class HomingMissile : MonoBehaviour
         if (ownerRoot == null)
             return;
 
-        ownerNetworkPlayer =
-            ownerRoot.GetComponent<NetworkTankPlayer>();
-        if (ownerNetworkPlayer == null)
-            ownerNetworkPlayer =
-                ownerRoot.GetComponentInParent<NetworkTankPlayer>();
-
         Collider[] missileColliders =
             GetComponentsInChildren<Collider>();
 
@@ -143,24 +116,6 @@ public class HomingMissile : MonoBehaviour
                 }
             }
         }
-    }
-
-    public void SetNetworkTarget(
-        Transform newTarget,
-        NetworkTankPlayer targetPlayer,
-        bool permitMissileCamera,
-        Vector2 aimErrorDegrees,
-        float targetHitDistance)
-    {
-        target = newTarget;
-        networkTargetPlayer = targetPlayer;
-        networkedMissile = true;
-        allowMissileCamera = permitMissileCamera;
-        networkAimErrorDegrees = aimErrorDegrees;
-        networkAimErrorDistance = target != null
-            ? Vector3.Distance(transform.position, target.position)
-            : 0f;
-        networkHitDistance = Mathf.Max(0.1f, targetHitDistance);
     }
 
     void FixedUpdate()
@@ -189,27 +144,12 @@ public class HomingMissile : MonoBehaviour
 
         Vector3 targetPosition =
             target.position + Vector3.up * targetHeightOffset;
-        if (networkedMissile)
-        {
-            float horizontalError =
-                Mathf.Tan(networkAimErrorDegrees.x * Mathf.Deg2Rad) *
-                networkAimErrorDistance;
-            float verticalError =
-                Mathf.Tan(networkAimErrorDegrees.y * Mathf.Deg2Rad) *
-                networkAimErrorDistance;
-            targetPosition += target.right * horizontalError +
-                              target.up * verticalError;
-        }
-
         Vector3 toTarget = targetPosition - rb.position;
 
-        float impactDistance = networkedMissile
-            ? networkHitDistance
-            : hitDistance;
         Vector3 actualTargetPosition =
             target.position + Vector3.up * targetHeightOffset;
         if (Vector3.SqrMagnitude(actualTargetPosition - rb.position) <=
-            impactDistance * impactDistance)
+            hitDistance * hitDistance)
         {
             AIDroneController drone =
                 target.GetComponentInParent<AIDroneController>();
@@ -220,8 +160,6 @@ public class HomingMissile : MonoBehaviour
                 return;
             }
 
-            if (TryHitNetworkDrone())
-                return;
         }
 
         if (toTarget.sqrMagnitude > 0.001f)
@@ -269,42 +207,7 @@ public class HomingMissile : MonoBehaviour
             return;
         }
 
-        if (networkedMissile &&
-            TryHitNetworkDrone(collision.collider.transform))
-            return;
-
         Explode();
-    }
-
-    private bool TryHitNetworkDrone(Transform hitTransform = null)
-    {
-        if (!networkedMissile || exploded || networkTargetPlayer == null)
-            return false;
-
-        TankDronecontroll droneController =
-            networkTargetPlayer.GetComponent<TankDronecontroll>();
-        Transform targetDrone = droneController != null
-            ? droneController.droneTransform
-            : null;
-        if (targetDrone == null ||
-            (hitTransform != null && hitTransform != targetDrone &&
-             !hitTransform.IsChildOf(targetDrone)))
-            return false;
-
-        exploded = true;
-        droneImpact = true;
-        CreateExplosion();
-
-        if (ownerNetworkPlayer != null && ownerNetworkPlayer.IsOwner)
-        {
-            ownerNetworkPlayer.RequestEnemyDroneMissileHit(
-                networkTargetPlayer,
-                transform.position
-            );
-        }
-
-        BeginDisappearance();
-        return true;
     }
 
     void DestroyDrone(AIDroneController drone)
@@ -380,8 +283,7 @@ public class HomingMissile : MonoBehaviour
 
         if (droneImpact)
         {
-            if (allowMissileCamera && missileViewCamera != null &&
-                GameDirector.Instance != null)
+            if (missileViewCamera != null && GameDirector.Instance != null)
             {
                 GameDirector.Instance.BeginMissileViewImpact(
                     missileViewCamera,

@@ -24,7 +24,6 @@ public class TankDronecontroll : MonoBehaviour
     public float maximumBank = 25f;
     public float propellerRotationSpeed = 1800f;
 
-    private NetworkTankPlayer networkPlayer;
     private Rigidbody droneBody;
     private TankDroneImpact droneImpact;
     private MinimapDroneMarker minimapDroneMarker;
@@ -54,7 +53,6 @@ public class TankDronecontroll : MonoBehaviour
     private bool isDeployed;
     private bool isDroneView;
     private bool isDestroyed;
-    private bool hasRemoteState;
     private float yaw;
     private float pitch;
     private float pitchLevelingVelocity;
@@ -62,9 +60,6 @@ public class TankDronecontroll : MonoBehaviour
     private float throttleInput;
     private float turnInput;
     private float liftInput;
-    private float nextNetworkUpdate;
-    private Vector3 remotePosition;
-    private Quaternion remoteRotation;
 
     private FlightState flightState;
     private ReturnPhase returnPhase;
@@ -142,9 +137,7 @@ public class TankDronecontroll : MonoBehaviour
 
     public void Initialize(bool localOwner)
     {
-        networkPlayer = GetComponent<NetworkTankPlayer>();
-        isLocalOwner = localOwner &&
-                       (networkPlayer == null || networkPlayer.IsOwner);
+        isLocalOwner = localOwner;
 
         if (droneTransform == null || droneBody == null ||
             droneCamera == null || homeParent == null)
@@ -266,25 +259,11 @@ public class TankDronecontroll : MonoBehaviour
 
     private void Update()
     {
-        if (hasRemoteState && !isLocalOwner)
-        {
-            if (droneTransform != null)
-            {
-                UpdateRemoteDrone();
-                SpinPropellers();
-            }
-
-            return;
-        }
-
         if (!isLocalOwner)
             return;
 
         if (isDestroyed)
         {
-            if (droneTransform != null)
-                PublishDroneState();
-
             return;
         }
 
@@ -328,7 +307,6 @@ public class TankDronecontroll : MonoBehaviour
         }
 
         SpinPropellers();
-        PublishDroneState();
     }
 
     private void FixedUpdate()
@@ -378,7 +356,6 @@ public class TankDronecontroll : MonoBehaviour
         droneCameraFollow.BeginFollowing();
         droneCameraFollow.SetFollowYaw(yaw);
         SetDroneView(true);
-        PublishDroneState(true);
     }
 
     private void UpdateDeployment()
@@ -511,7 +488,6 @@ public class TankDronecontroll : MonoBehaviour
         turnVelocity = 0f;
         SetDroneView(false);
         SetTankControls(true);
-        PublishDroneState(true);
     }
 
     private void UpdateReturn()
@@ -558,7 +534,6 @@ public class TankDronecontroll : MonoBehaviour
         pitch = 0f;
         SetDroneView(false);
         SetTankControls(true);
-        PublishDroneState(true);
     }
 
     private bool MoveReturnTo(Vector3 targetPosition, Quaternion targetRotation)
@@ -777,24 +752,6 @@ public class TankDronecontroll : MonoBehaviour
         }
     }
 
-    private void PublishDroneState(bool force = false)
-    {
-        if (droneTransform == null || networkPlayer == null ||
-            !networkPlayer.IsOwner)
-            return;
-
-        if (!force && Time.time < nextNetworkUpdate)
-            return;
-
-        nextNetworkUpdate = Time.time + 0.1f;
-        networkPlayer.PublishDroneState(
-            droneTransform.position,
-            droneTransform.rotation,
-            isDeployed,
-            isDestroyed
-        );
-    }
-
     public void HandleDroneImpact(Vector3 impactPoint, bool sink = true)
     {
         if (!CanHandleDroneImpact)
@@ -832,7 +789,6 @@ public class TankDronecontroll : MonoBehaviour
         if (handleLocalControls)
         {
             SetTankControls(true);
-            PublishDroneState(true);
         }
     }
 
@@ -912,77 +868,5 @@ public class TankDronecontroll : MonoBehaviour
         SwitchToTankViewAfterImpact();
     }
 
-    public void ApplyRemoteState(
-        Vector3 worldPosition,
-        Quaternion worldRotation,
-        bool deployed,
-        bool destroyed)
-    {
-        if (isLocalOwner || droneTransform == null || homeParent == null)
-            return;
 
-        hasRemoteState = true;
-        isDeployed = deployed;
-        if (deployed)
-        {
-            if (droneTransform.parent != null)
-                droneTransform.SetParent(null, true);
-
-            remotePosition = worldPosition;
-            remoteRotation = worldRotation;
-            if (destroyed && !isDestroyed)
-            {
-                isDestroyed = true;
-                if (droneImpact != null)
-                    droneImpact.BeginDestruction(worldPosition, true);
-            }
-        }
-        else
-        {
-            if (droneTransform.parent != homeParent)
-                droneTransform.SetParent(homeParent, false);
-
-            droneTransform.localPosition = homeLocalPosition;
-            droneTransform.localRotation = homeLocalRotation;
-            if (droneBody != null)
-            {
-                droneBody.isKinematic = true;
-                droneBody.interpolation = RigidbodyInterpolation.None;
-            }
-        }
-    }
-
-    private void UpdateRemoteDrone()
-    {
-        if (isDestroyed)
-            return;
-
-        if (!isDeployed)
-        {
-            if (droneTransform.parent != homeParent)
-                droneTransform.SetParent(homeParent, false);
-
-            droneTransform.localPosition = homeLocalPosition;
-            droneTransform.localRotation = homeLocalRotation;
-            return;
-        }
-
-        Vector3 targetPosition = isDeployed
-            ? remotePosition
-            : homeParent.TransformPoint(homeLocalPosition);
-        Quaternion targetRotation = isDeployed
-            ? remoteRotation
-            : homeParent.rotation * homeLocalRotation;
-
-        droneTransform.position = Vector3.Lerp(
-            droneTransform.position,
-            targetPosition,
-            12f * Time.deltaTime
-        );
-        droneTransform.rotation = Quaternion.Slerp(
-            droneTransform.rotation,
-            targetRotation,
-            12f * Time.deltaTime
-        );
-    }
 }

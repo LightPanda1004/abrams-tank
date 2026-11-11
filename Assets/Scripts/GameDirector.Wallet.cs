@@ -487,7 +487,6 @@ public partial class GameDirector
             {
                 address = connectedWalletAddress
             }),
-            false,
             body => challenge =
                 JsonUtility.FromJson<OnlineWalletChallengeResponse>(body),
             error => requestError = error
@@ -552,7 +551,6 @@ public partial class GameDirector
                 nonce = challenge.nonce,
                 signature = signatureTask.Result
             }),
-            false,
             body => linkedWallet =
                 JsonUtility.FromJson<OnlineWalletResponse>(body),
             error => requestError = error

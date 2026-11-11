@@ -29,7 +29,6 @@ public class Tankdetectsystem : MonoBehaviour
 
     private TankDronecontroll droneController;
     private TankHealth ownerHealth;
-    private NetworkTankPlayer networkPlayer;
     private Canvas markerCanvas;
     private RectTransform markerCanvasRect;
     private float nextScanTime;
@@ -38,12 +37,11 @@ public class Tankdetectsystem : MonoBehaviour
     {
         droneController = GetComponent<TankDronecontroll>();
         ownerHealth = GetComponent<TankHealth>();
-        networkPlayer = GetComponent<NetworkTankPlayer>();
     }
 
     private void LateUpdate()
     {
-        if (!IsLocalPlayer() || droneController == null ||
+        if (droneController == null ||
             !droneController.IsDeployed)
         {
             ClearDetections();
@@ -61,20 +59,6 @@ public class Tankdetectsystem : MonoBehaviour
         }
 
         UpdateMarkers();
-    }
-
-    private bool IsLocalPlayer()
-    {
-        if (networkPlayer == null)
-            return true;
-
-        if (!networkPlayer.IsSpawned)
-        {
-            return GameDirector.Instance == null ||
-                   !GameDirector.Instance.IsMultiplayerMode;
-        }
-
-        return networkPlayer.IsOwner;
     }
 
     private void EnsureCanvas()
@@ -286,19 +270,9 @@ public class Tankdetectsystem : MonoBehaviour
         if (detection.image == null)
             return;
 
-        NetworkTankPlayer targetNetworkPlayer =
-            detection.health.GetComponent<NetworkTankPlayer>();
-        bool isBlue;
-        if (targetNetworkPlayer != null && targetNetworkPlayer.IsSpawned &&
-            targetNetworkPlayer.HasTeam)
-        {
-            isBlue = targetNetworkPlayer.Team == TankTeam.Blue;
-        }
-        else
-        {
-            isBlue = detection.health.isPlayerTank;
-        }
-        detection.image.sprite = isBlue ? blueDetectMarker : redDetectMarker;
+        detection.image.sprite = detection.health.isPlayerTank
+            ? blueDetectMarker
+            : redDetectMarker;
         detection.image.enabled = detection.image.sprite != null;
     }
 

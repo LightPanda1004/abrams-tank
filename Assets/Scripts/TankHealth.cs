@@ -1,7 +1,6 @@
 
 using System.Collections;
 using UnityEngine;
-using Unity.Netcode;
 
 public class TankHealth : MonoBehaviour
 {
@@ -22,32 +21,22 @@ public class TankHealth : MonoBehaviour
     public bool isPlayerTank = false;
 
     private bool isDestroyed = false;
-    private NetworkTankPlayer networkTankPlayer;
     private TankScopeZoom scopeZoom;
 
     public float CurrentHealth => currentHealth;
 
     public bool IsDestroyed => isDestroyed;
 
-    public void SetReplicatedHealth(float health)
+    public void SetAuthoritativeHealth(float health)
     {
-        float previousHealth = currentHealth;
         currentHealth = Mathf.Clamp(health, 0f, maxHealth);
-
-        if (currentHealth < previousHealth)
-            NotifyPlayerHit();
-
         if (healthBar != null)
             healthBar.UpdateHealth(currentHealth);
-
-        if (currentHealth <= 0f && !isDestroyed)
-            DestroyTank();
     }
 
     void Awake()
     {
         currentHealth = maxHealth;
-        networkTankPlayer = GetComponent<NetworkTankPlayer>();
         scopeZoom = GetComponentInChildren<TankScopeZoom>(true);
         if (scopeZoom == null)
             scopeZoom = GetComponentInParent<TankScopeZoom>();
@@ -69,11 +58,6 @@ public class TankHealth : MonoBehaviour
         if (isDestroyed || damage <= 0f)
             return;
 
-        if (NetworkManager.Singleton != null &&
-            NetworkManager.Singleton.IsListening &&
-            !NetworkManager.Singleton.IsServer)
-            return;
-
         currentHealth -= damage;
         currentHealth = Mathf.Max(0f, currentHealth);
         NotifyPlayerHit();
@@ -85,9 +69,6 @@ public class TankHealth : MonoBehaviour
             if (aiTankController != null)
                 aiTankController.NotifyAttackedBy(attacker);
         }
-
-        if (networkTankPlayer != null)
-            networkTankPlayer.SetServerHealth(currentHealth);
 
         // Update the health bar.
         if (healthBar != null)
@@ -127,8 +108,7 @@ private void DisableTank()
     foreach (MonoBehaviour script in scripts)
     {
         // Missing scripts can appear as null entries.
-        if (script == null || script == this ||
-            script is NetworkBehaviour)
+        if (script == null || script == this)
             continue;
 
         script.enabled = false;
@@ -160,9 +140,6 @@ private void DisableTank()
         if (healthBar != null)
             Destroy(healthBar.gameObject);
 
-        if (networkTankPlayer == null)
-            networkTankPlayer = GetComponent<NetworkTankPlayer>();
-
         MinimapMarker marker = GetComponent<MinimapMarker>();
 
         if (marker != null)
@@ -175,30 +152,8 @@ private void DisableTank()
         }
         PlayDestructionEffects();
 
-        NetworkObject networkObject = GetComponent<NetworkObject>();
-        bool isNetworked = networkObject != null && networkObject.IsSpawned;
-
-        if (isNetworked && networkTankPlayer != null &&
-            NetworkManager.Singleton != null &&
-            NetworkManager.Singleton.IsServer)
-        {
-            networkTankPlayer.NotifyMultiplayerTankDestroyed();
-        }
-
         DisableTank();
-
-        if (isNetworked)
-        {
-            if (NetworkManager.Singleton != null &&
-                NetworkManager.Singleton.IsServer)
-            {
-                StartCoroutine(DespawnAfterDelay(networkObject));
-            }
-        }
-        else
-        {
-            Destroy(gameObject, destroyDelay);
-        }
+        Destroy(gameObject, destroyDelay);
     }
 
     private void PlayDestructionEffects()
@@ -222,15 +177,4 @@ private void DisableTank()
         Destroy(fireAndSmoke, destroyDelay);
     }
 
-    private IEnumerator DespawnAfterDelay(NetworkObject networkObject)
-    {
-        yield return new WaitForSeconds(destroyDelay);
-
-        if (networkObject != null && networkObject.IsSpawned &&
-            NetworkManager.Singleton != null &&
-            NetworkManager.Singleton.IsServer)
-        {
-            networkObject.Despawn(true);
-        }
-    }
 }
