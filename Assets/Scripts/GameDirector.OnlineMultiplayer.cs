@@ -855,6 +855,14 @@ public partial class GameDirector
             onlineRoomsScroll,
             contentRect
         );
+        if (availableOnlineRooms.Count == 0)
+        {
+            GUI.Label(
+                new Rect(10f, 10f, contentRect.width - 20f, 52f),
+                "No open rooms yet.\nCreate a room or refresh to try again.",
+                statsStyle
+            );
+        }
         for (int i = 0; i < availableOnlineRooms.Count; i++)
         {
             OnlineRoomInfo room = availableOnlineRooms[i];

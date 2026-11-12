@@ -39,7 +39,22 @@ public partial class GameDirector
         string label,
         GUIStyle style = null)
     {
-        return GUI.Button(rect, label, style ?? buttonStyle);
+        Color previousColor = GUI.color;
+        bool isHovered = Event.current.type == EventType.Repaint &&
+            rect.Contains(Event.current.mousePosition);
+        GUI.color = style == selectedButtonStyle
+            ? new Color(1f, 0.91f, 0.67f, 1f)
+            : isHovered
+                ? new Color(0.88f, 0.91f, 0.73f, 1f)
+                : Color.white;
+        try
+        {
+            return GUI.Button(rect, label, style ?? buttonStyle);
+        }
+        finally
+        {
+            GUI.color = previousColor;
+        }
     }
 
     private Rect GetMenuPanelRect(float layoutWidth, float layoutHeight)
@@ -59,19 +74,73 @@ public partial class GameDirector
         );
     }
 
-    private void DrawMenuPanel(Rect panel, string title)
+    private void DrawMenuPanel(
+        Rect panel,
+        string title,
+        float layoutScale = 1f)
     {
         GUI.Box(panel, GUIContent.none, menuPanelStyle);
-        menuTitleStyle.fontSize = Mathf.Clamp(
-            Mathf.RoundToInt(panel.width * 0.065f),
-            20,
-            32
+        if (title == "LEOPARD BATTLE" && menuTitleLogo != null)
+        {
+            GUI.DrawTexture(
+                new Rect(
+                    panel.x + 36f * layoutScale,
+                    panel.y + 76f * layoutScale,
+                    panel.width - 72f * layoutScale,
+                    112f * layoutScale
+                ),
+                menuTitleLogo,
+                ScaleMode.ScaleToFit,
+                true
+            );
+        }
+        else
+        {
+            menuTitleStyle.fontSize = Mathf.Clamp(
+                Mathf.RoundToInt(25f * layoutScale),
+                14,
+                29
+            );
+            GUI.Label(
+                new Rect(
+                    panel.x + 30f * layoutScale,
+                    panel.y + 17f * layoutScale,
+                    panel.width - 60f * layoutScale,
+                    40f * layoutScale
+                ),
+                title,
+                menuTitleStyle
+            );
+        }
+        Color previousColor = GUI.color;
+        GUI.color = new Color(0.95f, 0.65f, 0.24f, 0.9f);
+        GUI.DrawTexture(
+            new Rect(
+                panel.x + 24f * layoutScale,
+                panel.y + 64f * layoutScale,
+                panel.width - 48f * layoutScale,
+                Mathf.Max(1f, 2f * layoutScale)
+            ),
+            Texture2D.whiteTexture
         );
-        GUI.Label(
-            new Rect(panel.x + 30f, panel.y + 20f, panel.width - 60f, 48f),
-            title,
-            menuTitleStyle
+        GUI.color = previousColor;
+    }
+
+    private void DrawMenuBackdrop()
+    {
+        Rect screen = new Rect(0f, 0f, Screen.width, Screen.height);
+        GUI.color = Color.white;
+        GUI.DrawTexture(
+            screen,
+            menuBackgroundTexture != null
+                ? menuBackgroundTexture
+                : Texture2D.blackTexture,
+            ScaleMode.ScaleAndCrop
         );
+
+        GUI.color = new Color(0.025f, 0.03f, 0.025f, 0.34f);
+        GUI.DrawTexture(screen, Texture2D.whiteTexture);
+        GUI.color = Color.white;
     }
 
     private void DrawMissileView()
@@ -118,7 +187,7 @@ public partial class GameDirector
             ? 640f
             : showEconomyMenu
             ? 860f
-            : showOnlineMenu ? 640f : 420f;
+            : showOnlineMenu ? 640f : 500f;
         float layoutHeight = showRoomMenu
             ? 720f
             : showEconomyMenu
@@ -126,13 +195,19 @@ public partial class GameDirector
             : showOnlineMenu
             ? string.IsNullOrEmpty(onlineAuthToken) ? 430f
                 : string.IsNullOrEmpty(onlineWalletAddress) ? 600f : 470f
-            : showSettings || showControlSettings ? 440f : 470f;
+            : showSettings || showControlSettings ? 440f : 560f;
         Rect panel = GetMenuPanelRect(layoutWidth, layoutHeight);
+        if (!showRoomMenu && !showEconomyMenu && !showOnlineMenu &&
+            !showSettings && !showControlSettings && Screen.width >= 960)
+        {
+            panel.x = Mathf.Max(24f, Screen.width * 0.055f);
+        }
         float width = panel.width;
         float height = panel.height;
         float x = panel.x;
         float y = panel.y;
 
+        DrawMenuBackdrop();
         string title = showRoomMenu
             ? "ONLINE ROOMS"
             : showEconomyMenu
@@ -142,7 +217,7 @@ public partial class GameDirector
             : showControlSettings
                 ? "CONTROL SETTINGS"
                 : showSettings ? "SETTINGS" : "LEOPARD BATTLE";
-        DrawMenuPanel(panel, title);
+        DrawMenuPanel(panel, title, width / layoutWidth);
 
         float scaleX = width / layoutWidth;
         float scaleY = height / layoutHeight;
@@ -189,36 +264,58 @@ public partial class GameDirector
         }
 
         if (DrawMenuButton(
-            new Rect(x + 50, y + 90, layoutWidth - 100, 48),
-            "SINGLE PLAY",
+            new Rect(x + 40, y + 196, layoutWidth - 80, 44),
+            "SINGLE PLAYER",
             buttonStyle))
         {
             StartGame();
         }
+        GUI.Label(
+            new Rect(x + 58, y + 241, layoutWidth - 116, 20),
+            "SOLO CAMPAIGN   /   FIGHT AI TANKS",
+            menuSubtitleStyle
+        );
 
         if (DrawMenuButton(
-            new Rect(x + 50, y + 150, layoutWidth - 100, 48),
-            "ACCOUNT & WALLET",
+            new Rect(x + 40, y + 275, layoutWidth - 80, 44),
+            "ONLINE PLAY",
             buttonStyle))
         {
             OpenOnlineMenu();
         }
+        GUI.Label(
+            new Rect(x + 58, y + 320, layoutWidth - 116, 20),
+            "JOIN A ROOM   /   FIGHT WITH YOUR TEAM",
+            menuSubtitleStyle
+        );
 
         if (DrawMenuButton(
-            new Rect(x + 50, y + 210, layoutWidth - 100, 48),
+            new Rect(x + 40, y + 354, layoutWidth - 80, 44),
             "SETTINGS",
             buttonStyle))
         {
             showSettings = true;
         }
+        GUI.Label(
+            new Rect(x + 58, y + 399, layoutWidth - 116, 20),
+            "DISPLAY   /   CONTROLS",
+            menuSubtitleStyle
+        );
 
+#if !UNITY_WEBGL || UNITY_EDITOR
         if (DrawMenuButton(
-            new Rect(x + 50, y + 270, layoutWidth - 100, 48),
-            "EXIT",
+            new Rect(x + 40, y + 433, layoutWidth - 80, 44),
+            "EXIT GAME",
             buttonStyle))
         {
             QuitGame();
         }
+#endif
+        GUI.Label(
+            new Rect(x + 40, y + 500, layoutWidth - 80, 22),
+            "WASD / ARROWS  MOVE       MOUSE  AIM       CLICK  FIRE",
+            menuSubtitleStyle
+        );
         GUI.matrix = previousMatrix;
     }
 
@@ -700,6 +797,7 @@ public partial class GameDirector
 
     private void DrawPauseMenu()
     {
+        DrawMenuBackdrop();
         bool showPauseActions = !showSettings && !showControlSettings;
         float layoutHeight = showPauseActions ? 560f : 440f;
         Rect panel = GetMenuPanelRect(420f, layoutHeight);
@@ -716,7 +814,8 @@ public partial class GameDirector
                 ? "PAUSED"
                 : showControlSettings
                     ? "CONTROL SETTINGS"
-                    : "SETTINGS"
+                    : "SETTINGS",
+            width / 420f
         );
 
         if (showControlSettings)
@@ -783,6 +882,7 @@ public partial class GameDirector
             ReturnToMainMenu();
         }
 
+#if !UNITY_WEBGL || UNITY_EDITOR
         if (DrawMenuButton(
             new Rect(
                 x + 65f * actionScale,
@@ -795,6 +895,7 @@ public partial class GameDirector
         {
             QuitGame();
         }
+#endif
     }
 
     // --------------------------------------------------
@@ -1004,12 +1105,12 @@ public partial class GameDirector
             ? playerTankFire.ReloadProgress
             : 1f;
 
-        DrawRadialMeter(
-            new Vector2(leftCenterX, meterY), 31f, missileProgress,
-            new Color(0.96f, 0.30f, 0.25f, 1f), "MISSILE", missileValue);
-        DrawRadialMeter(
-            new Vector2(rightCenterX, meterY), 31f, shellProgress,
-            new Color(0.12f, 0.75f, 0.96f, 1f), "SHELL", shellValue);
+        DrawWeaponMeter(
+            new Vector2(leftCenterX, meterY), missileProgress,
+            new Color(0.72f, 0.31f, 0.23f, 1f), "MISSILE", missileValue);
+        DrawWeaponMeter(
+            new Vector2(rightCenterX, meterY), shellProgress,
+            new Color(0.72f, 0.61f, 0.36f, 1f), "MAIN GUN", shellValue);
 
         float speed = playerMovement != null
             ? Mathf.Abs(playerMovement.currentSpeed)
@@ -1030,13 +1131,7 @@ public partial class GameDirector
         Rect speedBar = new Rect(
             speedCard.x + 8f, speedCard.y + 27f,
             speedCard.width - 16f, 13f);
-        GUI.Box(speedBar, "", hudBarBackgroundStyle);
-        GUI.Box(
-            new Rect(speedBar.x + 2f, speedBar.y + 2f,
-                (speedBar.width - 4f) * speedRatio,
-                speedBar.height - 4f),
-            "",
-            hudFillBlueStyle);
+        DrawTacticalBar(speedBar, speedRatio, new Color(0.59f, 0.64f, 0.39f));
 
         float health = playerHealth != null && playerHealth.maxHealth > 0f
             ? Mathf.Clamp01(
@@ -1065,144 +1160,69 @@ public partial class GameDirector
         Rect healthBar = new Rect(
             healthCard.x + 12f, healthCard.y + 23f,
             healthCard.width - 24f, 12f);
-        GUI.Box(healthBar, "", hudBarBackgroundStyle);
-        GUI.Box(
-            new Rect(healthBar.x + 2f, healthBar.y + 2f,
-                (healthBar.width - 4f) * health,
-                healthBar.height - 4f),
-            "",
-            hudBarFillStyle);
+        Color healthColor = health <= 0.25f
+            ? new Color(0.72f, 0.28f, 0.2f)
+            : health <= 0.5f
+                ? new Color(0.78f, 0.56f, 0.25f)
+                : new Color(0.58f, 0.66f, 0.4f);
+        DrawTacticalBar(healthBar, health, healthColor);
     }
 
-    private void DrawRadialMeter(
+    private void DrawWeaponMeter(
         Vector2 center,
-        float radius,
         float fill,
         Color accent,
         string label,
         string valueText)
     {
-        float value = Mathf.Clamp01(fill);
-        float bgRadius = radius + 2f;
-
-        GUI.DrawTexture(
-            new Rect(
-                center.x - bgRadius,
-                center.y - bgRadius,
-                bgRadius * 2f,
-                bgRadius * 2f),
-            GetRingTexture(128, 1f, new Color(0.15f, 0.18f, 0.24f, 0.9f))
-        );
-
-        GUI.DrawTexture(
-            new Rect(
-                center.x - radius,
-                center.y - radius,
-                radius * 2f,
-                radius * 2f),
-            GetRingTexture(128, value, accent)
+        Rect card = new Rect(center.x - 64f, center.y - 32f, 128f, 72f);
+        GUI.Box(card, "", hudBarBackgroundStyle);
+        GUI.Label(
+            new Rect(card.x + 8f, card.y + 4f, card.width - 16f, 18f),
+            label,
+            statsStyle
         );
         GUI.Label(
-            new Rect(center.x - 34f, center.y - 10f, 68f, 20f),
+            new Rect(card.x + 8f, card.y + 21f, card.width - 16f, 20f),
             valueText,
             hudMeterValueStyle
         );
-
-        GUI.Label(
-            new Rect(center.x - 50f, center.y + radius + 8f, 100f, 18f),
-            label,
-            statsStyle
+        DrawTacticalBar(
+            new Rect(card.x + 8f, card.y + 49f, card.width - 16f, 11f),
+            fill,
+            accent
         );
     }
 
-    private Texture2D GetRingTexture(
-        int size,
-        float fillAmount,
-        Color color)
+    private void DrawTacticalBar(Rect rect, float value, Color fillColor)
     {
-        int fillStep = Mathf.RoundToInt(Mathf.Clamp01(fillAmount) * 40f);
-        float steppedFill = fillStep / 40f;
-        string key = size + ":" + fillStep + ":" +
-            Mathf.RoundToInt(color.r * 255f) + ":" +
-            Mathf.RoundToInt(color.g * 255f) + ":" +
-            Mathf.RoundToInt(color.b * 255f);
+        GUI.Box(rect, "", hudBarBackgroundStyle);
+        float innerWidth = Mathf.Max(0f, rect.width - 4f);
+        float fillWidth = innerWidth * Mathf.Clamp01(value);
+        if (fillWidth <= 0f)
+            return;
 
-        if (!ringTextures.TryGetValue(key, out Texture2D cachedTexture))
-        {
-            cachedTexture = CreateRingTexture(size, steppedFill, color);
-            ringTextures[key] = cachedTexture;
-        }
-
-        return cachedTexture;
-    }
-
-    private Texture2D CreateRingTexture(
-        int size,
-        float fillAmount,
-        Color ringColor)
-    {
-        Texture2D texture = new Texture2D(
-            size,
-            size,
-            TextureFormat.RGBA32,
-            false
+        Color previousColor = GUI.color;
+        GUI.color = fillColor;
+        GUI.DrawTexture(
+            new Rect(rect.x + 2f, rect.y + 2f, fillWidth, rect.height - 4f),
+            Texture2D.whiteTexture
         );
+        GUI.color = previousColor;
 
-        texture.filterMode = FilterMode.Bilinear;
-        texture.wrapMode = TextureWrapMode.Clamp;
-
-        Color[] pixels = new Color[size * size];
-        float radius = size * 0.5f;
-        float innerRadius = radius * 0.7f;
-        float totalAngle = Mathf.Clamp01(fillAmount) * 360f;
-
-        for (int y = 0; y < size; y++)
+        const int segmentCount = 12;
+        float segmentWidth = innerWidth / segmentCount;
+        for (int i = 1; i < segmentCount; i++)
         {
-            for (int x = 0; x < size; x++)
+            float markerX = rect.x + 2f + i * segmentWidth - 1f;
+            if (markerX < rect.x + 2f + fillWidth)
             {
-                float dx = x - radius;
-                float dy = y - radius;
-                float dist = Mathf.Sqrt(dx * dx + dy * dy);
-
-                pixels[y * size + x] = new Color(0f, 0f, 0f, 0f);
-
-                if (dist <= radius && dist >= innerRadius)
-                {
-                    float angle = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg;
-                    float normalized = (angle + 450f) % 360f;
-
-                    if (normalized <= totalAngle)
-                    {
-                        pixels[y * size + x] = ringColor;
-                    }
-                }
+                GUI.DrawTexture(
+                    new Rect(markerX, rect.y + 2f, 2f, rect.height - 4f),
+                    Texture2D.blackTexture
+                );
             }
         }
-
-        texture.SetPixels(pixels);
-        texture.Apply();
-        generatedGuiTextures.Add(texture);
-        return texture;
-    }
-
-    private void DrawBar(
-        float x,
-        float y,
-        float width,
-        float height,
-        float value,
-        string label)
-    {
-        GUI.Box(new Rect(x, y, width, height), "", hudBarBackgroundStyle);
-
-        float fillWidth = Mathf.Clamp01(value) * (width - 4f);
-        GUI.Box(new Rect(x + 2f, y + 2f, fillWidth, height - 4f), "", hudBarFillStyle);
-
-        GUI.Label(
-            new Rect(x, y - 20f, width, 18f),
-            label,
-            statsStyle
-        );
     }
 
     // --------------------------------------------------
@@ -1211,6 +1231,7 @@ public partial class GameDirector
 
     private void DrawGameOverMenu()
     {
+        DrawMenuBackdrop();
         float layoutWidth = 380f;
         float layoutHeight = 320f;
         Rect panel = GetMenuPanelRect(layoutWidth, layoutHeight);
@@ -1219,7 +1240,11 @@ public partial class GameDirector
         float x = panel.x;
         float y = panel.y;
 
-        DrawMenuPanel(panel, victory ? "VICTORY" : "DEFEAT");
+        DrawMenuPanel(
+            panel,
+            victory ? "VICTORY" : "DEFEAT",
+            width / layoutWidth
+        );
 
         float scaleX = width / layoutWidth;
         float scaleY = height / layoutHeight;
@@ -1253,11 +1278,13 @@ public partial class GameDirector
             ReturnToMainMenu();
         }
 
+#if !UNITY_WEBGL || UNITY_EDITOR
         if (DrawMenuButton(
             new Rect(x + 50, y + 245, layoutWidth - 100, 35),
             "EXIT",
             buttonStyle))
             QuitGame();
+#endif
 
         GUI.matrix = previousMatrix;
     }
@@ -1271,77 +1298,88 @@ public partial class GameDirector
         if (statsStyle != null)
             return;
 
+        menuFont = Resources.Load<Font>("MenuUI/BarlowCondensed-Bold");
+        menuBackgroundTexture =
+            Resources.Load<Texture2D>("MenuUI/BattlefieldBackground");
+        menuTitleLogo = Resources.Load<Texture2D>("MenuUI/TitleLogo");
+        if (menuBackgroundTexture == null || menuTitleLogo == null)
+        {
+            Debug.LogWarning(
+                "The menu background or title logo could not be loaded from " +
+                "Assets/Resources/MenuUI; default UI fallbacks will be used.",
+                this
+            );
+        }
+        if (menuFont == null)
+        {
+            Debug.LogWarning(
+                "Barlow Condensed could not be loaded from Resources/MenuUI; " +
+                "the default Unity font will be used.",
+                this
+            );
+        }
+
         statsStyle = new GUIStyle(GUI.skin.label);
         statsStyle.fontSize = 15;
         statsStyle.fontStyle = FontStyle.Bold;
         statsStyle.normal.textColor = new Color(0.88f, 0.9f, 0.91f, 1f);
         statsStyle.alignment = TextAnchor.MiddleLeft;
+        if (menuFont != null)
+            statsStyle.font = menuFont;
 
         menuPanelStyle = new GUIStyle(GUI.skin.box);
         menuPanelStyle.normal.background = CreateMenuSurfaceTexture(
             96,
             96,
-            new Color(0.15f, 0.17f, 0.18f, 0.78f),
-            new Color(0.07f, 0.08f, 0.09f, 0.86f),
-            new Color(0.52f, 0.55f, 0.56f, 0.48f),
+            new Color(0.11f, 0.12f, 0.10f, 0.97f),
+            new Color(0.045f, 0.05f, 0.045f, 0.98f),
+            new Color(0.62f, 0.53f, 0.32f, 0.82f),
             12,
             2
         );
-        menuPanelStyle.border = new RectOffset(14, 14, 14, 14);
+        menuPanelStyle.border = new RectOffset(16, 16, 16, 16);
         menuPanelStyle.padding = new RectOffset(0, 0, 0, 0);
 
         menuTitleStyle = new GUIStyle(GUI.skin.label);
-        menuTitleStyle.fontSize = 27;
+        menuTitleStyle.fontSize = 25;
         menuTitleStyle.fontStyle = FontStyle.Bold;
         menuTitleStyle.alignment = TextAnchor.MiddleLeft;
-        menuTitleStyle.normal.textColor = Color.white;
+        menuTitleStyle.normal.textColor = new Color(0.91f, 0.89f, 0.81f);
         menuTitleStyle.clipping = TextClipping.Clip;
+        if (menuFont != null)
+            menuTitleStyle.font = menuFont;
+
+        menuSubtitleStyle = new GUIStyle(GUI.skin.label);
+        menuSubtitleStyle.fontSize = 15;
+        menuSubtitleStyle.alignment = TextAnchor.MiddleLeft;
+        menuSubtitleStyle.normal.textColor = new Color(0.72f, 0.71f, 0.64f);
+        menuSubtitleStyle.clipping = TextClipping.Clip;
+        if (menuFont != null)
+            menuSubtitleStyle.font = menuFont;
 
         buttonStyle = new GUIStyle(GUI.skin.button);
-        buttonStyle.fontSize = 17;
+        buttonStyle.fontSize = 18;
         buttonStyle.fontStyle = FontStyle.Bold;
-        buttonStyle.alignment = TextAnchor.MiddleCenter;
-        buttonStyle.padding = new RectOffset(12, 12, 8, 8);
-        buttonStyle.border = new RectOffset(10, 10, 10, 10);
-        buttonStyle.normal.background = CreateMenuSurfaceTexture(
-            96,
-            48,
-            new Color(0.66f, 0.68f, 0.69f, 0.94f),
-            new Color(0.39f, 0.41f, 0.42f, 0.94f),
-            new Color(0.17f, 0.18f, 0.19f, 0.9f),
-            7,
-            2
-        );
-        buttonStyle.hover.background = CreateMenuSurfaceTexture(
-            96,
-            48,
-            new Color(0.78f, 0.80f, 0.81f, 0.97f),
-            new Color(0.49f, 0.51f, 0.52f, 0.97f),
-            new Color(0.86f, 0.88f, 0.89f, 0.95f),
-            7,
-            2
-        );
-        buttonStyle.active.background = CreateMenuSurfaceTexture(
-            96,
-            48,
-            new Color(0.37f, 0.39f, 0.4f, 0.98f),
-            new Color(0.26f, 0.28f, 0.29f, 0.98f),
-            new Color(0.83f, 0.85f, 0.86f, 0.9f),
-            7,
-            2
-        );
+        buttonStyle.alignment = TextAnchor.MiddleLeft;
+        buttonStyle.padding = new RectOffset(22, 16, 8, 8);
+        buttonStyle.border = new RectOffset(8, 8, 8, 8);
+        Texture2D buttonBackground = CreateTacticalButtonTexture();
+        buttonStyle.normal.background = buttonBackground;
+        buttonStyle.hover.background = buttonBackground;
+        buttonStyle.active.background = buttonBackground;
         buttonStyle.focused.background = buttonStyle.hover.background;
-        buttonStyle.normal.textColor = Color.white;
-        buttonStyle.hover.textColor = Color.white;
-        buttonStyle.active.textColor = Color.white;
-        buttonStyle.focused.textColor = Color.white;
+        buttonStyle.normal.textColor = new Color(0.91f, 0.89f, 0.81f);
+        buttonStyle.hover.textColor = new Color(1f, 0.97f, 0.86f);
+        buttonStyle.active.textColor = new Color(1f, 0.94f, 0.78f);
+        buttonStyle.focused.textColor = new Color(1f, 0.97f, 0.86f);
+        if (menuFont != null)
+            buttonStyle.font = menuFont;
 
         pauseMenuButtonStyle = new GUIStyle(buttonStyle);
         pauseMenuButtonStyle.fontSize = 23;
 
         selectedButtonStyle = new GUIStyle(buttonStyle);
-        selectedButtonStyle.normal.background = buttonStyle.hover.background;
-        selectedButtonStyle.normal.textColor = Color.white;
+        selectedButtonStyle.normal.textColor = new Color(1f, 0.9f, 0.67f);
 
         menuInputStyle = new GUIStyle(GUI.skin.textField);
         menuInputStyle.fontSize = 17;
@@ -1350,9 +1388,9 @@ public partial class GameDirector
         menuInputStyle.normal.background = CreateMenuSurfaceTexture(
             64,
             48,
-            new Color(0.18f, 0.24f, 0.30f, 0.98f),
-            new Color(0.11f, 0.15f, 0.19f, 0.98f),
-            new Color(0.57f, 0.69f, 0.77f, 0.94f),
+            new Color(0.19f, 0.21f, 0.17f, 0.98f),
+            new Color(0.10f, 0.12f, 0.10f, 0.98f),
+            new Color(0.62f, 0.56f, 0.39f, 0.94f),
             8,
             2
         );
@@ -1360,9 +1398,9 @@ public partial class GameDirector
         menuInputStyle.focused.background = CreateMenuSurfaceTexture(
             64,
             48,
-            new Color(0.22f, 0.30f, 0.37f, 1f),
-            new Color(0.13f, 0.19f, 0.24f, 1f),
-            new Color(0.82f, 0.90f, 0.95f, 1f),
+            new Color(0.25f, 0.27f, 0.21f, 1f),
+            new Color(0.13f, 0.15f, 0.12f, 1f),
+            new Color(0.88f, 0.74f, 0.45f, 1f),
             8,
             2
         );
@@ -1371,6 +1409,8 @@ public partial class GameDirector
         menuInputStyle.focused.textColor = Color.white;
         menuInputStyle.hover.textColor = Color.white;
         menuInputStyle.active.textColor = Color.white;
+        if (menuFont != null)
+            menuInputStyle.font = menuFont;
 
         menuToggleStyle = new GUIStyle(GUI.skin.toggle);
         menuToggleStyle.fontSize = 16;
@@ -1378,10 +1418,12 @@ public partial class GameDirector
         menuToggleStyle.hover.textColor = Color.white;
         menuToggleStyle.onNormal.textColor = Color.white;
         menuToggleStyle.onHover.textColor = Color.white;
+        if (menuFont != null)
+            menuToggleStyle.font = menuFont;
 
         hudPanelStyle = new GUIStyle(GUI.skin.box);
         hudPanelStyle.normal.background = CreateSolidTexture(
-            new Color(0.035f, 0.055f, 0.075f, 0.88f)
+            new Color(0.055f, 0.065f, 0.05f, 0.94f)
         );
         hudPanelStyle.border = new RectOffset(18, 18, 18, 18);
         hudPanelStyle.padding = new RectOffset(8, 8, 8, 8);
@@ -1389,53 +1431,112 @@ public partial class GameDirector
         hudValueStyle = new GUIStyle(GUI.skin.label);
         hudValueStyle.fontSize = 20;
         hudValueStyle.fontStyle = FontStyle.Bold;
-        hudValueStyle.normal.textColor = Color.white;
+        hudValueStyle.normal.textColor = new Color(0.9f, 0.88f, 0.79f);
         hudValueStyle.alignment = TextAnchor.MiddleCenter;
+        if (menuFont != null)
+            hudValueStyle.font = menuFont;
 
         hudMeterValueStyle = new GUIStyle(hudValueStyle);
         hudMeterValueStyle.fontSize = 14;
 
         hudBarBackgroundStyle = new GUIStyle(GUI.skin.box);
-        hudBarBackgroundStyle.normal.background = CreateSolidTexture(
-            new Color(0.12f, 0.16f, 0.19f, 0.95f)
+        hudBarBackgroundStyle.normal.background = CreateMenuSurfaceTexture(
+            128,
+            32,
+            new Color(0.16f, 0.18f, 0.14f, 0.98f),
+            new Color(0.07f, 0.09f, 0.07f, 0.99f),
+            new Color(0.39f, 0.41f, 0.32f, 0.92f),
+            3,
+            2
         );
-        hudBarBackgroundStyle.border = new RectOffset(4, 4, 4, 4);
+        hudBarBackgroundStyle.border = new RectOffset(7, 7, 7, 7);
 
-        hudBarFillStyle = new GUIStyle(GUI.skin.box);
-        hudBarFillStyle.normal.background = CreateSolidTexture(
-            new Color(0.25f, 0.9f, 0.48f, 1f)
-        );
-        hudBarFillStyle.border = new RectOffset(4, 4, 4, 4);
-
-        hudFillBlueStyle = new GUIStyle(GUI.skin.box);
-        hudFillBlueStyle.normal.background = CreateSolidTexture(
-            new Color(0.12f, 0.75f, 0.96f, 1f)
-        );
-        hudFillBlueStyle.border = new RectOffset(4, 4, 4, 4);
-
-        hudDangerPanelStyle = new GUIStyle(GUI.skin.box);
-        hudDangerPanelStyle.normal.background = CreateSolidTexture(
-            new Color(0.16f, 0.08f, 0.10f, 1f)
-        );
-        hudDangerPanelStyle.border = new RectOffset(10, 10, 10, 10);
-
-        hudDangerFillStyle = new GUIStyle(GUI.skin.box);
-        hudDangerFillStyle.normal.background = CreateSolidTexture(
-            new Color(0.96f, 0.30f, 0.25f, 1f)
-        );
-        hudDangerFillStyle.border = new RectOffset(4, 4, 4, 4);
-
-        hudBadgeStyle = new GUIStyle(GUI.skin.button);
-        hudBadgeStyle.alignment = TextAnchor.MiddleCenter;
-        hudBadgeStyle.normal.textColor = new Color(0.08f, 0.9f, 0.6f, 1f);
-        hudBadgeStyle.fontSize = 12;
-        hudBadgeStyle.fontStyle = FontStyle.Bold;
     }
 
     private Texture2D CreateSolidTexture(Color color)
     {
         Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
         texture.SetPixel(0, 0, color);
+        texture.Apply();
+        generatedGuiTextures.Add(texture);
+        return texture;
+    }
+
+    private Texture2D CreateTacticalButtonTexture()
+    {
+        const int width = 192;
+        const int height = 64;
+        Color[] pixels = new Color[width * height];
+        Color edgeColor = new Color(0.52f, 0.54f, 0.43f, 1f);
+        Color topColor = new Color(0.27f, 0.30f, 0.24f, 1f);
+        Color bottomColor = new Color(0.12f, 0.15f, 0.13f, 1f);
+        Color accentColor = new Color(0.72f, 0.57f, 0.31f, 1f);
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int left = x;
+                int right = width - 1 - x;
+                int bottom = y;
+                int top = height - 1 - y;
+                bool clippedCorner =
+                    (left < 8 && bottom < 8 && left + bottom < 7) ||
+                    (right < 8 && bottom < 8 && right + bottom < 7) ||
+                    (left < 8 && top < 8 && left + top < 7) ||
+                    (right < 8 && top < 8 && right + top < 7);
+                int pixelIndex = y * width + x;
+                if (clippedCorner)
+                {
+                    pixels[pixelIndex] = Color.clear;
+                    continue;
+                }
+
+                bool outerEdge = x < 2 || right < 2 || y < 2 || top < 2;
+                bool innerEdge = x == 4 || right == 4 || y == 4 || top == 4;
+                if (outerEdge)
+                {
+                    pixels[pixelIndex] = edgeColor;
+                }
+                else if (innerEdge)
+                {
+                    pixels[pixelIndex] =
+                        new Color(0.07f, 0.085f, 0.07f, 0.95f);
+                }
+                else if (x >= 8 && x < 14)
+                {
+                    pixels[pixelIndex] = accentColor;
+                }
+                else if (y == height - 6)
+                {
+                    pixels[pixelIndex] =
+                        new Color(0.47f, 0.48f, 0.37f, 0.55f);
+                }
+                else
+                {
+                    float blend = y / (float)(height - 1);
+                    Color baseColor = Color.Lerp(
+                        bottomColor,
+                        topColor,
+                        blend
+                    );
+                    bool textureLine = (y % 6 == 0) && x > 16;
+                    pixels[pixelIndex] = textureLine
+                        ? Color.Lerp(baseColor, Color.white, 0.035f)
+                        : baseColor;
+                }
+            }
+        }
+
+        Texture2D texture = new Texture2D(
+            width,
+            height,
+            TextureFormat.RGBA32,
+            false
+        );
+        texture.SetPixels(pixels);
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.filterMode = FilterMode.Bilinear;
         texture.Apply();
         generatedGuiTextures.Add(texture);
         return texture;

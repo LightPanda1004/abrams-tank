@@ -1,0 +1,22 @@
+Menu typography
+
+Barlow Condensed Bold
+- Source: https://github.com/google/fonts/tree/c30b221beb0c1da59d563feb91ec8656a1fa972a/ofl/barlowcondensed
+- Copyright: The Barlow Project Authors
+- License: SIL Open Font License 1.1 (see BarlowCondensed-OFL.txt)
+
+The menu's tactical controls and status meters are rendered by the game UI.
+Title logo
+
+- Existing project artwork.
+
+Battlefield background
+
+U.S. Army participates in Anakonda23 (2023)
+- Photographer: Pfc. Jason Klaer, U.S. Army
+- Source: https://commons.wikimedia.org/wiki/File:U_S_Army_participates_in_Anakonda23_(7783397).jpg
+- License: Public domain; official U.S. Army photograph.
+
+Button texture
+
+Buttons and segmented status bars use original procedural graphics rendered by the game UI.

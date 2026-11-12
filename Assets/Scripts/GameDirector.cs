@@ -80,8 +80,6 @@ public partial class GameDirector : MonoBehaviour
         new Vector2Int(2560, 1440)
     };
 
-    private readonly Dictionary<string, Texture2D> ringTextures =
-        new Dictionary<string, Texture2D>();
     private readonly List<Texture2D> generatedGuiTextures =
         new List<Texture2D>();
 
@@ -96,6 +94,7 @@ public partial class GameDirector : MonoBehaviour
     private GUIStyle statsStyle;
     private GUIStyle menuPanelStyle;
     private GUIStyle menuTitleStyle;
+    private GUIStyle menuSubtitleStyle;
     private GUIStyle buttonStyle;
     private GUIStyle pauseMenuButtonStyle;
     private GUIStyle selectedButtonStyle;
@@ -105,11 +104,9 @@ public partial class GameDirector : MonoBehaviour
     private GUIStyle hudValueStyle;
     private GUIStyle hudMeterValueStyle;
     private GUIStyle hudBarBackgroundStyle;
-    private GUIStyle hudBarFillStyle;
-    private GUIStyle hudFillBlueStyle;
-    private GUIStyle hudDangerPanelStyle;
-    private GUIStyle hudDangerFillStyle;
-    private GUIStyle hudBadgeStyle;
+    private Font menuFont;
+    private Texture2D menuBackgroundTexture;
+    private Texture2D menuTitleLogo;
     private bool gameplayStatusVisibilityInitialized;
     private bool gameplayStatusBarsVisible;
     [Serializable]
