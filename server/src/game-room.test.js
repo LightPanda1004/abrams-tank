@@ -56,6 +56,34 @@ test("server clamps movement input and keeps players inside the arena", () => {
     }), false);
 });
 
+test("movement follows tank acceleration and turns more slowly while reversing", () => {
+    const room = new GameRoom("room-movement");
+    room.addPlayer(player(1));
+    room.setInput("1", {
+        throttle: 1,
+        steering: 0,
+        fire: false
+    });
+
+    for (let tick = 0; tick < 5; tick++) {
+        room.tick(0.1);
+    }
+    const moving = room.snapshot().players[0];
+    assert.equal(moving.speed, 1);
+    assert.ok(Math.abs(moving.x - (-23.7)) < 0.001);
+    assert.equal(moving.z, -48);
+
+    room.setInput("1", {
+        throttle: -1,
+        steering: 1,
+        fire: false
+    });
+    const headingBeforeReverse = room.players.get("1").heading;
+    room.tick(0.1);
+    const reversed = room.players.get("1");
+    assert.ok(Math.abs(reversed.heading - headingBeforeReverse - 4.5) < 0.001);
+});
+
 test("server-side projectiles damage only enemies and award a kill", () => {
     const room = new GameRoom("room-4");
     room.addPlayer(player(1, 1));
@@ -94,6 +122,40 @@ test("server-side projectiles damage only enemies and award a kill", () => {
     room.tick(0.05, target.respawnAt);
     assert.equal(target.alive, true);
     assert.equal(target.health, 100);
+});
+
+test("holding fire produces cooldown-limited projectiles and preserves aim", () => {
+    const room = new GameRoom("room-fire");
+    room.addPlayer(player(1));
+    const firstInput = {
+        throttle: 0,
+        steering: 0,
+        fire: true,
+        aimHeading: 123,
+        aimPitch: 12
+    };
+
+    room.setInput("1", firstInput, 10_000);
+    assert.equal(room.projectiles.length, 1);
+    assert.deepEqual(room.pendingEvents[0], {
+        type: "playerJoined",
+        userId: "1",
+        playerName: "Pilot1",
+        team: 1
+    });
+    assert.equal(room.pendingEvents[1].type, "playerFired");
+
+    room.setInput("1", firstInput, 11_000);
+    assert.equal(room.projectiles.length, 1);
+    room.setInput("1", firstInput, 11_800);
+    assert.equal(room.projectiles.length, 2);
+
+    const state = room.tick(0.05, 11_850);
+    assert.equal(state.players[0].aimHeading, 123);
+    assert.equal(state.players[0].aimPitch, 12);
+    assert.equal(state.projectiles[0].heading, 123);
+    assert.equal(state.projectiles[0].pitch, 12);
+    assert.equal(state.events.filter(event => event.type === "playerFired").length, 2);
 });
 
 test("a disconnected player and their projectiles are removed", () => {

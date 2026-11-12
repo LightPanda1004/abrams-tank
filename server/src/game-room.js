@@ -2,8 +2,11 @@
 
 const ROOM_CAPACITY = 32;
 const MAX_WORLD_COORDINATE = 100;
-const MOVE_SPEED = 8;
-const TURN_SPEED = 75;
+const FORWARD_SPEED = 6;
+const REVERSE_SPEED = 3;
+const ACCELERATION = 2;
+const DECELERATION = 3;
+const TURN_SPEED = 45;
 const PROJECTILE_SPEED = 42;
 const PROJECTILE_DAMAGE = 25;
 const PROJECTILE_RANGE = 80;
@@ -55,15 +58,17 @@ class GameRoom {
             x: spawnX,
             z: (teamPlayers - (this.capacity / 4)) * 6,
             heading: team === 1 ? 90 : -90,
+            aimHeading: team === 1 ? 90 : -90,
+            aimPitch: 0,
             throttle: 0,
             steering: 0,
+            speed: 0,
             health: 100,
             kills: 0,
             deaths: 0,
             alive: true,
             respawnAt: 0,
-            lastFireAt: 0,
-            previousFire: false
+            lastFireAt: 0
         };
         this.players.set(userId, player);
         this.pendingEvents.push({
@@ -96,7 +101,13 @@ class GameRoom {
             typeof input.steering !== "number" ||
             typeof input.fire !== "boolean" ||
             !Number.isFinite(input.throttle) ||
-            !Number.isFinite(input.steering)) {
+            !Number.isFinite(input.steering) ||
+            (input.aimHeading !== undefined &&
+                (typeof input.aimHeading !== "number" ||
+                    !Number.isFinite(input.aimHeading))) ||
+            (input.aimPitch !== undefined &&
+                (typeof input.aimPitch !== "number" ||
+                    !Number.isFinite(input.aimPitch)))) {
             return false;
         }
 
@@ -106,13 +117,26 @@ class GameRoom {
         player.steering = player.alive
             ? clamp(input.steering, -1, 1)
             : 0;
+        if (Number.isFinite(input.aimHeading)) {
+            player.aimHeading =
+                ((input.aimHeading % 360) + 360) % 360;
+        }
+        if (Number.isFinite(input.aimPitch)) {
+            player.aimPitch = clamp(input.aimPitch, -20, 45);
+        }
 
-        if (player.alive && input.fire && !player.previousFire &&
+        if (player.alive && input.fire &&
             now - player.lastFireAt >= FIRE_COOLDOWN_MS) {
             player.lastFireAt = now;
-            this.projectiles.push(this.createProjectile(player, now));
+            const projectile = this.createProjectile(player, now);
+            this.projectiles.push(projectile);
+            this.pendingEvents.push({
+                type: "playerFired",
+                userId,
+                projectileId: projectile.id,
+                cooldown: FIRE_COOLDOWN_MS / 1000
+            });
         }
-        player.previousFire = input.fire;
         return true;
     }
 
@@ -126,18 +150,32 @@ class GameRoom {
                 continue;
             }
 
+            const targetSpeed = player.throttle >= 0
+                ? player.throttle * FORWARD_SPEED
+                : player.throttle * REVERSE_SPEED;
+            const accelerating =
+                Math.abs(targetSpeed) > Math.abs(player.speed) &&
+                (Math.sign(targetSpeed) === Math.sign(player.speed) ||
+                    Math.abs(player.speed) < 0.01);
+            const speedChange = (accelerating ? ACCELERATION : DECELERATION) *
+                delta;
+            if (player.speed < targetSpeed) {
+                player.speed = Math.min(targetSpeed, player.speed + speedChange);
+            } else if (player.speed > targetSpeed) {
+                player.speed = Math.max(targetSpeed, player.speed - speedChange);
+            }
+
+            const direction = player.speed < -0.01 ? -1 : 1;
             player.heading = ((player.heading +
-                player.steering * TURN_SPEED * delta) % 360 + 360) % 360;
+                player.steering * TURN_SPEED * direction * delta) % 360 + 360) % 360;
             const radians = player.heading * Math.PI / 180;
             player.x = clamp(
-                player.x + Math.sin(radians) * player.throttle *
-                    MOVE_SPEED * delta,
+                player.x + Math.sin(radians) * player.speed * delta,
                 -MAX_WORLD_COORDINATE,
                 MAX_WORLD_COORDINATE
             );
             player.z = clamp(
-                player.z + Math.cos(radians) * player.throttle *
-                    MOVE_SPEED * delta,
+                player.z + Math.cos(radians) * player.speed * delta,
                 -MAX_WORLD_COORDINATE,
                 MAX_WORLD_COORDINATE
             );
@@ -156,6 +194,9 @@ class GameRoom {
                 x: round(player.x),
                 z: round(player.z),
                 heading: round(player.heading),
+                aimHeading: round(player.aimHeading),
+                aimPitch: round(player.aimPitch),
+                speed: round(player.speed),
                 health: player.health,
                 kills: player.kills,
                 deaths: player.deaths,
@@ -166,7 +207,8 @@ class GameRoom {
                 ownerId: projectile.ownerId,
                 x: round(projectile.x),
                 z: round(projectile.z),
-                heading: round(projectile.heading)
+                heading: round(projectile.heading),
+                pitch: round(projectile.pitch)
             })),
             events
         };
@@ -183,6 +225,9 @@ class GameRoom {
                 x: round(player.x),
                 z: round(player.z),
                 heading: round(player.heading),
+                aimHeading: round(player.aimHeading),
+                aimPitch: round(player.aimPitch),
+                speed: round(player.speed),
                 health: player.health,
                 kills: player.kills,
                 deaths: player.deaths,
@@ -194,14 +239,15 @@ class GameRoom {
     }
 
     createProjectile(player, now) {
-        const radians = player.heading * Math.PI / 180;
+        const radians = player.aimHeading * Math.PI / 180;
         return {
             id: this.nextProjectileId++,
             ownerId: player.userId,
             team: player.team,
             x: player.x + Math.sin(radians) * 2.5,
             z: player.z + Math.cos(radians) * 2.5,
-            heading: player.heading,
+            heading: player.aimHeading,
+            pitch: player.aimPitch,
             distance: 0,
             createdAt: now
         };
@@ -226,6 +272,7 @@ class GameRoom {
                 this.pendingEvents.push({
                     type: "playerHit",
                     userId: target.userId,
+                    attackerId: projectile.ownerId,
                     health: target.health,
                     projectileId: projectile.id
                 });
@@ -258,9 +305,12 @@ class GameRoom {
         player.health = 100;
         player.throttle = 0;
         player.steering = 0;
+        player.speed = 0;
         player.x = player.team === 1 ? -24 : 24;
         player.z = 0;
         player.heading = player.team === 1 ? 90 : -90;
+        player.aimHeading = player.heading;
+        player.aimPitch = 0;
         player.respawnAt = 0;
         this.pendingEvents.push({
             type: "playerRespawned",

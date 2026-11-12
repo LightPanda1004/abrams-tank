@@ -172,9 +172,13 @@ each additional gateway process. The API assigns one active room to each
 gateway process.
 
 The current gateway is a Node.js simulation with simplified X/Z movement and
-server-side projectiles. It does not instantiate the Unity tank prefab or
-simulate the local scene's physics, drones, or equipment. Match-result and
-blockchain reward endpoints are not automatically invoked by this gateway.
+server-side projectiles. The WebGL client predicts its own tank movement,
+smooths corrections and remote-player snapshots, and renders networked shot
+effects plus track, rotor, and exhaust animations. The server does not
+instantiate the Unity tank prefab or simulate the local scene's physics,
+drones, or equipment, so tank-to-tank hits are determined by the server's
+simplified arena model. Match-result and blockchain reward endpoints are not
+automatically invoked by this gateway.
 
 ### Blockchain battle rewards
 

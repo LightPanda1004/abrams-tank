@@ -54,6 +54,8 @@ public partial class GameDirector
         public OnlineGameRoomState snapshot;
         public OnlineGameRoomState state;
         public OnlineGamePlayer[] players = Array.Empty<OnlineGamePlayer>();
+        public OnlineGameProjectile[] projectiles =
+            Array.Empty<OnlineGameProjectile>();
         public OnlineGameEvent[] events = Array.Empty<OnlineGameEvent>();
     }
 
@@ -63,6 +65,8 @@ public partial class GameDirector
         public string type = "";
         public string roomId = "";
         public OnlineGamePlayer[] players = Array.Empty<OnlineGamePlayer>();
+        public OnlineGameProjectile[] projectiles =
+            Array.Empty<OnlineGameProjectile>();
         public OnlineGameEvent[] events = Array.Empty<OnlineGameEvent>();
     }
 
@@ -75,6 +79,9 @@ public partial class GameDirector
         public float x;
         public float z;
         public float heading;
+        public float aimHeading;
+        public float aimPitch;
+        public float speed;
         public int health;
         public int kills;
         public int deaths;
@@ -88,6 +95,19 @@ public partial class GameDirector
         public string userId = "";
         public string attackerId = "";
         public int health;
+        public int projectileId;
+        public float cooldown;
+    }
+
+    [Serializable]
+    private sealed class OnlineGameProjectile
+    {
+        public int id;
+        public string ownerId = "";
+        public float x;
+        public float z;
+        public float heading;
+        public float pitch;
     }
 
     [Serializable]
@@ -97,6 +117,24 @@ public partial class GameDirector
         public float throttle;
         public float steering;
         public bool fire;
+        public float aimHeading;
+        public float aimPitch;
+    }
+
+    private sealed class OnlineTransformTarget
+    {
+        public Vector3 position;
+        public Quaternion rotation;
+        public Quaternion turretRotation;
+        public Vector3 startPosition;
+        public Quaternion startRotation;
+        public Quaternion startTurretRotation;
+        public float cannonPitch;
+        public float startCannonPitch;
+        public float startedAt;
+        public float duration;
+        public bool initialized;
+        public bool wasAlive;
     }
 
 #if UNITY_WEBGL && !UNITY_EDITOR
@@ -120,6 +158,13 @@ public partial class GameDirector
         new List<OnlineRoomInfo>();
     private readonly Dictionary<string, GameObject> onlineRemotePlayers =
         new Dictionary<string, GameObject>();
+    private readonly Dictionary<string, OnlineTransformTarget>
+        onlineRemoteTargets =
+            new Dictionary<string, OnlineTransformTarget>();
+    private readonly Dictionary<int, GameObject> onlineProjectiles =
+        new Dictionary<int, GameObject>();
+    private readonly OnlineTransformTarget onlineLocalTarget =
+        new OnlineTransformTarget();
     private OnlineGamePlayer[] currentOnlinePlayers =
         Array.Empty<OnlineGamePlayer>();
     private Collider[] onlinePlayerColliders = Array.Empty<Collider>();
@@ -128,6 +173,7 @@ public partial class GameDirector
     private bool[] onlinePlayerRendererStates = Array.Empty<bool>();
     private bool onlinePlayerMovementWasEnabled;
     private bool onlinePlayerBodyWasKinematic;
+    private RigidbodyInterpolation onlinePlayerBodyInterpolation;
     private bool onlinePlayerTankFireWasEnabled;
     private float onlineOriginalPlayerHealth;
     private bool onlineMissileLauncherWasEnabled;
@@ -142,6 +188,7 @@ public partial class GameDirector
     private string onlineGameRoomId = "";
     private string onlineGameUserId = "";
     private float nextOnlineInputTime;
+    private bool pendingOnlineFireInput;
     private Vector3 onlineWorldOffset;
     private Vector3 onlineOriginalPlayerPosition;
     private Quaternion onlineOriginalPlayerRotation;
@@ -383,6 +430,7 @@ public partial class GameDirector
                 {
                     roomId = message.roomId,
                     players = message.players,
+                    projectiles = message.projectiles,
                     events = message.events
                 });
                 break;
@@ -461,8 +509,8 @@ public partial class GameDirector
         if (playerMovement != null)
         {
             onlinePlayerMovementWasEnabled = playerMovement.enabled;
-            playerMovement.enabled = false;
             playerMovement.currentSpeed = 0f;
+            playerMovement.enabled = true;
         }
 
         if (playerHealth != null)
@@ -489,9 +537,11 @@ public partial class GameDirector
             if (body != null)
             {
                 onlinePlayerBodyWasKinematic = body.isKinematic;
+                onlinePlayerBodyInterpolation = body.interpolation;
                 body.velocity = Vector3.zero;
                 body.angularVelocity = Vector3.zero;
-                body.isKinematic = true;
+                body.isKinematic = false;
+                body.interpolation = RigidbodyInterpolation.Interpolate;
             }
 
             TankFire tankFire = playerHealth.GetComponent<TankFire>();
@@ -512,19 +562,39 @@ public partial class GameDirector
 
     private void UpdateOnlineRoomInput()
     {
-        if (!onlineRoomActive || !onlineSocketAuthenticated ||
-            Time.unscaledTime < nextOnlineInputTime)
+        if (!onlineRoomActive || !onlineSocketAuthenticated)
         {
             return;
         }
+
+        pendingOnlineFireInput |=
+            Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space);
+        if (Time.unscaledTime < nextOnlineInputTime)
+            return;
 
         nextOnlineInputTime = Time.unscaledTime + 0.05f;
         OnlineGameSocketInput input = new OnlineGameSocketInput
         {
             throttle = Input.GetAxisRaw("Vertical"),
             steering = Input.GetAxisRaw("Horizontal"),
-            fire = Input.GetMouseButton(0) || Input.GetKey(KeyCode.Space)
+            fire = pendingOnlineFireInput ||
+                Input.GetMouseButton(0) ||
+                Input.GetKey(KeyCode.Space)
         };
+        pendingOnlineFireInput = false;
+        TankTurretMove turretControls = playerHealth != null
+            ? playerHealth.GetComponentInChildren<TankTurretMove>(true)
+            : null;
+        if (turretControls != null && turretControls.turret != null)
+            input.aimHeading = turretControls.turret.eulerAngles.y;
+        else if (playerHealth != null)
+            input.aimHeading = playerHealth.transform.eulerAngles.y;
+
+        if (turretControls != null && turretControls.cannon != null)
+        {
+            float pitch = turretControls.cannon.localEulerAngles.x;
+            input.aimPitch = pitch > 180f ? pitch - 360f : pitch;
+        }
 #if UNITY_WEBGL && !UNITY_EDITOR
         AbramsGameSocketSend(
             gameObject.name,
@@ -538,8 +608,25 @@ public partial class GameDirector
         if (state == null || state.players == null)
             return;
 
-        HashSet<string> currentPlayers = new HashSet<string>();
         OnlineGamePlayer localPlayer = null;
+        foreach (OnlineGamePlayer player in state.players)
+        {
+            if (player != null && player.userId == onlineGameUserId)
+            {
+                localPlayer = player;
+                break;
+            }
+        }
+        if (localPlayer != null && playerHealth != null &&
+            !onlineWorldOffsetInitialized)
+        {
+            Vector3 worldPosition = playerHealth.transform.position;
+            onlineWorldOffset = worldPosition -
+                new Vector3(localPlayer.x, worldPosition.y, localPlayer.z);
+            onlineWorldOffsetInitialized = true;
+        }
+
+        HashSet<string> currentPlayers = new HashSet<string>();
         foreach (OnlineGamePlayer player in state.players)
         {
             if (player == null || string.IsNullOrEmpty(player.userId))
@@ -547,10 +634,7 @@ public partial class GameDirector
 
             currentPlayers.Add(player.userId);
             if (player.userId == onlineGameUserId)
-            {
-                localPlayer = player;
                 continue;
-            }
 
             GameObject remote = GetOrCreateRemotePlayer(player);
             if (remote == null)
@@ -558,10 +642,18 @@ public partial class GameDirector
             remote.SetActive(player.alive);
             if (player.alive)
             {
-                remote.transform.SetPositionAndRotation(
-                    ToWorldPosition(player.x, player.z),
-                    Quaternion.Euler(0f, player.heading, 0f)
+                SetOnlineTransformTarget(
+                    player.userId,
+                    remote.transform,
+                    player,
+                    onlineRemoteTargets
                 );
+            }
+            else if (onlineRemoteTargets.TryGetValue(
+                player.userId,
+                out OnlineTransformTarget deadTarget))
+            {
+                deadTarget.wasAlive = false;
             }
         }
 
@@ -575,28 +667,41 @@ public partial class GameDirector
         {
             Destroy(onlineRemotePlayers[userId]);
             onlineRemotePlayers.Remove(userId);
+            onlineRemoteTargets.Remove(userId);
         }
 
+        ApplyOnlineRoomEvents(state.events);
         if (localPlayer != null && playerHealth != null)
         {
-            if (!onlineWorldOffsetInitialized)
-            {
-                Vector3 worldPosition = playerHealth.transform.position;
-                onlineWorldOffset = worldPosition -
-                    new Vector3(localPlayer.x, worldPosition.y, localPlayer.z);
-                onlineWorldOffsetInitialized = true;
-            }
-
             SetLocalPlayerVisible(localPlayer.alive);
             if (localPlayer.alive)
             {
-                playerHealth.transform.SetPositionAndRotation(
-                    ToWorldPosition(localPlayer.x, localPlayer.z),
-                    Quaternion.Euler(0f, localPlayer.heading, 0f)
+                SetOnlineTransformTarget(
+                    localPlayer,
+                    playerHealth.transform,
+                    onlineLocalTarget
                 );
             }
+            if (playerMovement != null)
+            {
+                playerMovement.enabled = localPlayer.alive;
+                if (!localPlayer.alive)
+                    playerMovement.currentSpeed = 0f;
+            }
+            if (!localPlayer.alive)
+            {
+                Rigidbody body = playerHealth.GetComponent<Rigidbody>();
+                if (body != null)
+                {
+                    body.velocity = Vector3.zero;
+                    body.angularVelocity = Vector3.zero;
+                }
+            }
+            if (!localPlayer.alive)
+                onlineLocalTarget.wasAlive = false;
             playerHealth.SetAuthoritativeHealth(localPlayer.health);
         }
+        ApplyOnlineProjectiles(state.projectiles);
         currentOnlinePlayers = state.players;
     }
 
@@ -627,8 +732,13 @@ public partial class GameDirector
         foreach (MonoBehaviour behaviour in
             remote.GetComponentsInChildren<MonoBehaviour>(true))
         {
-            if (behaviour != null)
-                behaviour.enabled = false;
+            if (behaviour == null)
+                continue;
+
+            behaviour.enabled =
+                behaviour is TankTrackTextureAnimation ||
+                behaviour is TankRotorAnimation ||
+                behaviour is TankExhaustSmoke;
         }
         foreach (Camera camera in remote.GetComponentsInChildren<Camera>(true))
             camera.enabled = false;
@@ -657,8 +767,308 @@ public partial class GameDirector
                 ? new Color(0.25f, 0.58f, 1f)
                 : new Color(1f, 0.34f, 0.27f)
         );
+        OnlineTransformTarget target = new OnlineTransformTarget
+        {
+            initialized = true,
+            wasAlive = player.alive,
+            position = ToWorldPosition(player.x, player.z),
+            rotation = Quaternion.Euler(0f, player.heading, 0f),
+            turretRotation = Quaternion.Euler(
+                0f,
+                player.aimHeading,
+                0f
+            ),
+            cannonPitch = player.aimPitch,
+            startCannonPitch = player.aimPitch,
+            startedAt = Time.unscaledTime
+        };
+        remote.transform.SetPositionAndRotation(
+            target.position,
+            target.rotation
+        );
+        SetRemoteTurretRotation(
+            remote.transform,
+            target.turretRotation,
+            target.cannonPitch
+        );
+        onlineRemoteTargets[player.userId] = target;
         onlineRemotePlayers[player.userId] = remote;
         return remote;
+    }
+
+    private void SetOnlineTransformTarget(
+        string userId,
+        Transform playerTransform,
+        OnlineGamePlayer player,
+        Dictionary<string, OnlineTransformTarget> targets)
+    {
+        if (!targets.TryGetValue(
+            userId,
+            out OnlineTransformTarget target))
+        {
+            target = new OnlineTransformTarget();
+            targets[userId] = target;
+        }
+        SetOnlineTransformTarget(player, playerTransform, target);
+    }
+
+    private void SetOnlineTransformTarget(
+        OnlineGamePlayer player,
+        Transform playerTransform,
+        OnlineTransformTarget target)
+    {
+        Vector3 position = ToWorldPosition(player.x, player.z);
+        Quaternion rotation = Quaternion.Euler(0f, player.heading, 0f);
+        Quaternion turretRotation = Quaternion.Euler(
+            0f,
+            player.aimHeading,
+            0f
+        );
+        float cannonPitch = player.aimPitch;
+        bool respawned = player.alive && !target.wasAlive;
+
+        if (!target.initialized || respawned)
+        {
+            playerTransform.SetPositionAndRotation(position, rotation);
+            target.startPosition = position;
+            target.startRotation = rotation;
+            target.startTurretRotation = turretRotation;
+            target.startCannonPitch = cannonPitch;
+            target.duration = 0f;
+            target.initialized = true;
+        }
+        else
+        {
+            target.startPosition = playerTransform.position;
+            target.startRotation = playerTransform.rotation;
+            TankTurretMove turretControls =
+                playerTransform.GetComponentInChildren<TankTurretMove>(true);
+            target.startTurretRotation =
+                turretControls != null && turretControls.turret != null
+                    ? turretControls.turret.rotation
+                    : target.turretRotation;
+            target.startCannonPitch =
+                turretControls != null && turretControls.cannon != null
+                    ? NormalizeAngle(turretControls.cannon.localEulerAngles.x)
+                    : target.cannonPitch;
+            target.duration = Mathf.Clamp(
+                Time.unscaledTime - target.startedAt,
+                0.04f,
+                0.15f
+            );
+        }
+
+        target.position = position;
+        target.rotation = rotation;
+        target.turretRotation = turretRotation;
+        target.cannonPitch = cannonPitch;
+        target.startedAt = Time.unscaledTime;
+        target.wasAlive = player.alive;
+    }
+
+    private static void SetRemoteTurretRotation(
+        Transform tank,
+        Quaternion rotation,
+        float cannonPitch)
+    {
+        TankTurretMove turretControls =
+            tank.GetComponentInChildren<TankTurretMove>(true);
+        if (turretControls != null && turretControls.turret != null)
+            turretControls.turret.rotation = rotation;
+        if (turretControls != null && turretControls.cannon != null)
+        {
+            Vector3 angles = turretControls.cannon.localEulerAngles;
+            angles.x = cannonPitch;
+            turretControls.cannon.localEulerAngles = angles;
+        }
+    }
+
+    private static float NormalizeAngle(float angle)
+    {
+        return angle > 180f ? angle - 360f : angle;
+    }
+
+    private void ApplyOnlineRoomEvents(OnlineGameEvent[] events)
+    {
+        if (events == null)
+            return;
+
+        foreach (OnlineGameEvent roomEvent in events)
+        {
+            if (roomEvent == null)
+                continue;
+
+            if (roomEvent.type == "playerFired")
+            {
+                GameObject tank = GetOnlinePlayerObject(roomEvent.userId);
+                TankFire tankFire = tank != null
+                    ? tank.GetComponent<TankFire>()
+                    : null;
+                if (tankFire == null)
+                    continue;
+
+                tankFire.PlayNetworkedShotEffect();
+                if (roomEvent.userId == onlineGameUserId)
+                    tankFire.NotifyNetworkedShot(roomEvent.cooldown);
+
+                GameObject projectile =
+                    tankFire.CreateNetworkedProjectileVisual();
+                if (projectile != null)
+                    onlineProjectiles[roomEvent.projectileId] = projectile;
+            }
+            else if (roomEvent.type == "playerHit" &&
+                onlineProjectiles.TryGetValue(
+                    roomEvent.projectileId,
+                    out GameObject projectile))
+            {
+                GameObject shooter =
+                    GetOnlinePlayerObject(roomEvent.attackerId);
+                TankFire tankFire = shooter != null
+                    ? shooter.GetComponent<TankFire>()
+                    : null;
+                if (tankFire != null)
+                    tankFire.PlayNetworkedImpactEffect(
+                        projectile.transform.position
+                    );
+            }
+        }
+    }
+
+    private GameObject GetOnlinePlayerObject(string userId)
+    {
+        if (userId == onlineGameUserId)
+            return playerHealth != null ? playerHealth.gameObject : null;
+        return onlineRemotePlayers.TryGetValue(userId, out GameObject remote)
+            ? remote
+            : null;
+    }
+
+    private void ApplyOnlineProjectiles(OnlineGameProjectile[] projectiles)
+    {
+        HashSet<int> activeProjectiles = new HashSet<int>();
+        if (projectiles != null)
+        {
+            foreach (OnlineGameProjectile projectile in projectiles)
+            {
+                if (projectile == null || projectile.id <= 0)
+                    continue;
+
+                activeProjectiles.Add(projectile.id);
+                if (!onlineProjectiles.TryGetValue(
+                    projectile.id,
+                    out GameObject visual) || visual == null)
+                {
+                    GameObject owner = GetOnlinePlayerObject(
+                        projectile.ownerId
+                    );
+                    TankFire tankFire = owner != null
+                        ? owner.GetComponent<TankFire>()
+                        : null;
+                    visual = tankFire != null
+                        ? tankFire.CreateNetworkedProjectileVisual()
+                        : null;
+                    if (visual != null)
+                        onlineProjectiles[projectile.id] = visual;
+                }
+
+                if (visual != null)
+                {
+                    visual.transform.SetPositionAndRotation(
+                        ToWorldPosition(projectile.x, projectile.z) +
+                            Vector3.up * 1.5f,
+                        Quaternion.Euler(
+                            projectile.pitch,
+                            projectile.heading,
+                            0f
+                        )
+                    );
+                }
+            }
+        }
+
+        List<int> expiredProjectiles = new List<int>();
+        foreach (KeyValuePair<int, GameObject> entry in onlineProjectiles)
+        {
+            if (!activeProjectiles.Contains(entry.Key))
+            {
+                if (entry.Value != null)
+                    Destroy(entry.Value);
+                expiredProjectiles.Add(entry.Key);
+            }
+        }
+        foreach (int projectileId in expiredProjectiles)
+            onlineProjectiles.Remove(projectileId);
+    }
+
+    private void UpdateOnlinePlayerTransforms()
+    {
+        if (playerHealth != null && onlineLocalTarget.initialized &&
+            onlineLocalTarget.wasAlive)
+        {
+            float correction = 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime);
+            playerHealth.transform.position = Vector3.Lerp(
+                playerHealth.transform.position,
+                onlineLocalTarget.position,
+                correction
+            );
+            playerHealth.transform.rotation = Quaternion.Slerp(
+                playerHealth.transform.rotation,
+                onlineLocalTarget.rotation,
+                correction
+            );
+        }
+
+        float now = Time.unscaledTime;
+        foreach (KeyValuePair<string, OnlineTransformTarget> entry in
+            onlineRemoteTargets)
+        {
+            if (!onlineRemotePlayers.TryGetValue(
+                entry.Key,
+                out GameObject remote) || remote == null ||
+                !remote.activeSelf)
+            {
+                continue;
+            }
+
+            OnlineTransformTarget target = entry.Value;
+            float blend = target.duration <= 0f
+                ? 1f
+                : Mathf.Clamp01((now - target.startedAt) / target.duration);
+            remote.transform.SetPositionAndRotation(
+                Vector3.Lerp(target.startPosition, target.position, blend),
+                Quaternion.Slerp(target.startRotation, target.rotation, blend)
+            );
+            SetRemoteTurretRotation(
+                remote.transform,
+                Quaternion.Slerp(
+                    target.startTurretRotation,
+                    target.turretRotation,
+                    blend
+                ),
+                Mathf.LerpAngle(
+                    target.startCannonPitch,
+                    target.cannonPitch,
+                    blend
+                )
+            );
+
+            TankMovement movement =
+                remote.GetComponentInChildren<TankMovement>(true);
+            if (movement != null)
+                movement.currentSpeed = currentOnlinePlayers.Length > 0
+                    ? GetOnlinePlayerSpeed(entry.Key)
+                    : 0f;
+        }
+    }
+
+    private float GetOnlinePlayerSpeed(string userId)
+    {
+        foreach (OnlineGamePlayer player in currentOnlinePlayers)
+        {
+            if (player != null && player.userId == userId)
+                return player.alive ? player.speed : 0f;
+        }
+        return 0f;
     }
 
     private Vector3 ToWorldPosition(float x, float z)
@@ -707,6 +1117,9 @@ public partial class GameDirector
         onlineGameUserId = "";
         onlineGameRoomId = "";
         onlineWorldOffsetInitialized = false;
+        pendingOnlineFireInput = false;
+        onlineLocalTarget.initialized = false;
+        onlineLocalTarget.wasAlive = false;
 
         foreach (GameObject remote in onlineRemotePlayers.Values)
         {
@@ -714,6 +1127,13 @@ public partial class GameDirector
                 Destroy(remote);
         }
         onlineRemotePlayers.Clear();
+        onlineRemoteTargets.Clear();
+        foreach (GameObject projectile in onlineProjectiles.Values)
+        {
+            if (projectile != null)
+                Destroy(projectile);
+        }
+        onlineProjectiles.Clear();
 
         if (playerMovement != null)
             playerMovement.enabled = onlinePlayerMovementWasEnabled;
@@ -728,7 +1148,12 @@ public partial class GameDirector
             }
             Rigidbody body = playerHealth.GetComponent<Rigidbody>();
             if (body != null)
+            {
+                body.velocity = Vector3.zero;
+                body.angularVelocity = Vector3.zero;
                 body.isKinematic = onlinePlayerBodyWasKinematic;
+                body.interpolation = onlinePlayerBodyInterpolation;
+            }
             TankFire tankFire = playerHealth.GetComponent<TankFire>();
             if (tankFire != null)
                 tankFire.enabled = onlinePlayerTankFireWasEnabled;
@@ -958,7 +1383,13 @@ public partial class GameDirector
 
     private void UpdateOnlineRoom()
     {
+        if (!onlineRoomActive)
+            return;
+
         UpdateOnlineRoomInput();
+        UpdateOnlinePlayerTransforms();
+        if (playerTankFire != null)
+            playerTankFire.UpdateNetworkReloadState();
     }
 
     private void OnDestroyOnlineRoom()
@@ -969,6 +1400,13 @@ public partial class GameDirector
                 Destroy(remote);
         }
         onlineRemotePlayers.Clear();
+        onlineRemoteTargets.Clear();
+        foreach (GameObject projectile in onlineProjectiles.Values)
+        {
+            if (projectile != null)
+                Destroy(projectile);
+        }
+        onlineProjectiles.Clear();
 #if UNITY_WEBGL && !UNITY_EDITOR
         AbramsGameSocketClose(gameObject.name);
 #endif

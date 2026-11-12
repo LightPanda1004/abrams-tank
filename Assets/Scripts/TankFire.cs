@@ -41,6 +41,82 @@ public class TankFire : MonoBehaviour
     private bool canFire;
     private bool ignoreMouseFireUntilRelease;
     private bool wasPaused;
+    private float networkReloadDuration;
+
+    public GameObject CreateNetworkedProjectileVisual()
+    {
+        if (shellPrefab == null || firePoint == null)
+            return null;
+
+        GameObject shell = Instantiate(
+            shellPrefab,
+            firePoint.position,
+            firePoint.rotation
+        );
+        foreach (TankShell shellBehaviour in
+            shell.GetComponentsInChildren<TankShell>(true))
+        {
+            shellBehaviour.enabled = false;
+        }
+        foreach (Collider shellCollider in
+            shell.GetComponentsInChildren<Collider>(true))
+        {
+            shellCollider.enabled = false;
+        }
+        foreach (Rigidbody shellBody in
+            shell.GetComponentsInChildren<Rigidbody>(true))
+        {
+            shellBody.velocity = Vector3.zero;
+            shellBody.angularVelocity = Vector3.zero;
+            shellBody.isKinematic = true;
+            shellBody.detectCollisions = false;
+        }
+        Destroy(shell, 5f);
+        return shell;
+    }
+
+    public void PlayNetworkedShotEffect()
+    {
+        if (firePoint != null && muzzleExplosionPrefab != null)
+        {
+            GameObject effect = Instantiate(
+                muzzleExplosionPrefab,
+                firePoint.position,
+                firePoint.rotation
+            );
+            Destroy(effect, muzzleEffectLifetime);
+        }
+    }
+
+    public void PlayNetworkedImpactEffect(Vector3 position)
+    {
+        if (shellPrefab == null)
+            return;
+
+        TankShell shell = shellPrefab.GetComponentInChildren<TankShell>(true);
+        if (shell == null || shell.explosionPrefab == null)
+            return;
+
+        GameObject effect = Instantiate(
+            shell.explosionPrefab,
+            position,
+            shell.explosionPrefab.transform.rotation
+        );
+        Destroy(effect, shell.explosionDestroyDelay);
+    }
+
+    public void NotifyNetworkedShot(float cooldown)
+    {
+        networkReloadDuration = Mathf.Max(0.1f, cooldown);
+        nextFireTime = Time.time + networkReloadDuration;
+        isReloading = true;
+        SetReloadUIVisible(true);
+    }
+
+    public void UpdateNetworkReloadState()
+    {
+        UpdateReloadState();
+    }
 
     public bool IsReloading => isReloading;
     public float RemainingReload => Mathf.Max(0f, nextFireTime - Time.time);
@@ -191,6 +267,7 @@ public class TankFire : MonoBehaviour
         if (isReloading && remaining <= 0f)
         {
             isReloading = false;
+            networkReloadDuration = 0f;
             SetReloadUIVisible(false);
 
             Debug.Log("Reload complete. Ready to fire.");
@@ -199,7 +276,12 @@ public class TankFire : MonoBehaviour
         if (!isReloading)
             return;
 
-        float duration = Mathf.Max(0.1f, fireCooldown);
+        float duration = Mathf.Max(
+            0.1f,
+            networkReloadDuration > 0f
+                ? networkReloadDuration
+                : fireCooldown
+        );
 
         float progress = 1f -
             Mathf.Clamp01(remaining / duration);
